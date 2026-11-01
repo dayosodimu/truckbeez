@@ -47,7 +47,14 @@ ENV NODE_ENV=production \
     PORT=3000
 WORKDIR /app
 # tini = proper PID 1 so SIGTERM reaches node and connections drain on deploy.
-RUN apk add --no-cache tini
+# npm/npx/corepack ship in the base image but are never used at runtime (CMD is
+# plain node). Removing them drops their bundled dependencies, which carry
+# HIGH CVEs (pacote, sigstore, ip-address, brace-expansion, picomatch), and
+# leaves no package manager inside the production container.
+RUN apk add --no-cache tini \
+ && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+           /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+           /opt/yarn* /usr/local/bin/yarn /usr/local/bin/yarnpkg
 COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/dist ./dist
 COPY --chown=node:node package.json ./
