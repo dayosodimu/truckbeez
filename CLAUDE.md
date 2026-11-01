@@ -12,24 +12,25 @@ Core capabilities:
 - **Truck POIs** – truck stops, parking, fuel, scales, rest areas, repair.
 - **B2B subscription (fleet)** – logistics business owners subscribe to track and report on their drivers' navigation: live location, trip history, route adherence, ETA, hazmat compliance reports.
 
-## Proposed technical stack
-As of November 2026 the repo has no application code yet, so this is the **proposed starting stack**. Agents scaffolding new code use it. Once code exists, agents follow what the repo actually uses, and this table is updated whenever a choice changes.
+## Technical stack
+The starter monorepo (`apps/api`, `apps/mobile`, `packages/shared`) follows the stack in Jira epic BR-1. Agents follow what the repo actually uses, and this table is updated whenever a choice changes.
 
-| Layer | Default |
+| Layer | In use / planned |
 |---|---|
-| Mobile | React Native + TypeScript (iOS & Android), offline-capable map tiles |
-| Web (fleet dashboard) | React + TypeScript (Next.js) |
-| API | Node.js + TypeScript (NestJS), REST + WebSocket for live tracking |
-| Data | PostgreSQL + PostGIS, Redis (live positions, rate limits), object storage for trip traces |
-| Routing | Commercial truck-routing engine (e.g. HERE / TomTom / Trimble) or self-hosted OSRM/Valhalla with truck profiles, behind an internal `routing-service` abstraction |
-| Payments | Stripe Billing for B2B subscriptions (seat-based per driver) |
-| Infra | Containers, Terraform, GitHub Actions CI/CD |
-| Testing | Appium (mobile E2E – preferred), Playwright (web), Jest/Vitest (unit), k6 (load), axe (a11y) |
+| Mobile | **Expo (React Native + TypeScript)** in `apps/mobile`, iOS & Android, offline-capable map tiles (planned) |
+| API | **Node + Express + Socket.IO (TypeScript)** in `apps/api`: REST for routing, Socket.IO for live reports and tracking |
+| Shared contracts | `packages/shared`: zod schemas and types used by both app and API |
+| Routing | **HERE Routing v8** (`transportMode=truck`) behind the internal routing-provider abstraction in `apps/api/src/routing` |
+| Web (fleet dashboard) | React + TypeScript (Next.js), planned with the fleet subscription (BR-38) |
+| Data | PostgreSQL + PostGIS, Redis (live positions, rate limits), object storage for trip traces (planned) |
+| Payments | Stripe Billing for B2B subscriptions (seat-based per driver), planned |
+| Infra | Containers, Terraform, GitHub Actions CI/CD (CI in `.github/workflows/ci.yml`) |
+| Testing | Appium (mobile E2E, preferred), Playwright (web), Vitest (shared, API), Jest + jest-expo (mobile), k6 (load), axe (a11y) |
 
 ## Tooling & tracking
-- **Code:** GitHub repo `truckbeez`
+- **Code:** GitHub repo `truckbeez`, an npm workspaces monorepo
 - **Planning:** Asana (Wave Bees project)
-- **Dev & bugs:** Jira
+- **Dev & bugs:** Jira project `BR` (Bees Route)
 - **Development guide:** whenever an agent changes the dev guide, the Google Drive copy must be refreshed too.
 
 ## Non-negotiables (all agents)
@@ -37,7 +38,7 @@ As of November 2026 the repo has no application code yet, so this is the **propo
 2. **Hazmat correctness beats route speed.** Never return a route that violates a hazmat or dimensional restriction to save time. If data is uncertain, warn.
 3. **Location data is sensitive.** Driver location is personal data. Fleet visibility is limited to on-duty time and to the subscribing company. Follow the security agent's data-handling rules.
 4. **Everything is tested.** No feature is "done" without automated tests and a passing CI pipeline.
-5. **Small, reviewable changes.** Conventional commits; one concern per PR; link the Jira key (e.g. `TB-123`) in branch names and commit messages.
+5. **Small, reviewable changes.** Conventional commits; one concern per PR; link the Jira key (e.g. `BR-123`) in branch names and commit messages.
 
 ## Agent roster and hand-offs
 | Agent | Owns | Hands off to |
