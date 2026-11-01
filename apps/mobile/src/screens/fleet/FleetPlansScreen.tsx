@@ -147,8 +147,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   plan: { backgroundColor: colors.asphalt, borderRadius: 18, borderWidth: 2, borderColor: colors.lane, padding: 16, gap: 4, minHeight: TAP },
-  planSelected: { borderColor: colors.amber },
+  planSelected: { borderColor: colors.amberStrong },
   planHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  badge: { color: colors.night, backgroundColor: colors.amber, fontWeight: "800", fontSize: 12, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, overflow: "hidden" },
+  badge: { color: colors.onBrand, backgroundColor: colors.amber, fontWeight: "800", fontSize: 12, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, overflow: "hidden" },
   price: { color: colors.signWhite, fontSize: 18, fontWeight: "700" },
 });

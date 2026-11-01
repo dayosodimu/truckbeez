@@ -54,7 +54,7 @@ export function DriverDetailScreen({ route }: Props) {
             accessibilityState={{ selected: days === r.days }}
             style={[styles.range, days === r.days && styles.rangeOn]}
           >
-            <Text style={[styles.rangeText, days === r.days && { color: colors.night }]}>{r.label}</Text>
+            <Text style={[styles.rangeText, days === r.days && { color: colors.onBrand }]}>{r.label}</Text>
           </Pressable>
         ))}
       </View>
@@ -100,7 +100,7 @@ export function DriverDetailScreen({ route }: Props) {
                 >
                   <Polyline
                     coordinates={t.path.map((p) => ({ latitude: p.lat, longitude: p.lng }))}
-                    strokeColor={colors.amber}
+                    strokeColor={colors.amberStrong}
                     strokeWidth={5}
                   />
                 </MapView>
@@ -117,7 +117,7 @@ export function DriverDetailScreen({ route }: Props) {
 function Stat({ value, label, warn }: { value: string; label: string; warn?: boolean }) {
   return (
     <View style={styles.stat}>
-      <Text style={[type.title, warn && { color: colors.amber }]}>{value}</Text>
+      <Text style={[type.title, warn && { color: colors.amberStrong }]}>{value}</Text>
       <Text style={type.label}>{label}</Text>
     </View>
   );
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
   stat: { width: "47%", backgroundColor: colors.asphalt, borderRadius: 16, padding: 14, gap: 2 },
   trip: { backgroundColor: colors.asphalt, borderRadius: 16, padding: 16, gap: 6, minHeight: TAP },
   tripHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  warn: { color: colors.amber, fontWeight: "700", fontSize: 15 },
+  warn: { color: colors.amberStrong, fontWeight: "700", fontSize: 15 },
   replay: { height: 200, borderRadius: 12, overflow: "hidden", marginTop: 8 },
   error: { color: colors.signWhite, backgroundColor: colors.danger, padding: 12, borderRadius: 10, fontSize: 16 },
 });

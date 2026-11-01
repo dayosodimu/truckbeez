@@ -28,9 +28,9 @@ export function Button({ label, onPress, variant = "primary", disabled, busy }: 
       ]}
     >
       {busy ? (
-        <ActivityIndicator color={primary ? colors.night : colors.signWhite} />
+        <ActivityIndicator color={primary ? colors.onBrand : colors.signWhite} />
       ) : (
-        <Text style={[styles.label, { color: primary ? colors.night : variant === "danger" ? colors.danger : colors.signWhite }]}>
+        <Text style={[styles.label, { color: primary ? colors.onBrand : variant === "danger" ? colors.danger : colors.signWhite }]}>
           {label}
         </Text>
       )}

@@ -58,7 +58,7 @@ export function ProfileScreen({ navigation }: Props) {
           <Switch
             value={draft.hazmat.includes(h)}
             onValueChange={() => toggleHazmat(h)}
-            trackColor={{ true: colors.amber, false: colors.lane }}
+            trackColor={{ true: colors.amberStrong, false: colors.lane }}
           />
         </View>
       ))}
@@ -110,5 +110,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  saveText: { color: colors.night, fontSize: 20, fontWeight: "800" },
+  saveText: { color: colors.onBrand, fontSize: 20, fontWeight: "800" },
 });
