@@ -17,7 +17,7 @@ export function FleetScreen({ navigation }: Props) {
   if (loading) {
     return (
       <View style={[styles.root, styles.center]}>
-        <ActivityIndicator color={colors.amber} />
+        <ActivityIndicator color={colors.amberStrong} />
       </View>
     );
   }
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.night },
   center: { alignItems: "center", justifyContent: "center" },
   content: { padding: 20, gap: 12 },
-  kicker: { color: colors.amber, fontSize: 14, fontWeight: "800", letterSpacing: 1.5 },
+  kicker: { color: colors.amberStrong, fontSize: 14, fontWeight: "800", letterSpacing: 1.5 },
   hero: { ...type.title, fontSize: 28, lineHeight: 34 },
   point: { ...type.body, color: colors.dimText },
   actions: { gap: 12, marginTop: 16 },

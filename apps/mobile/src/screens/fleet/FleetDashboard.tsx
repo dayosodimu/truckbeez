@@ -109,7 +109,7 @@ export function FleetDashboard({ navigation }: Props) {
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
-          tintColor={colors.amber}
+          tintColor={colors.amberStrong}
           onRefresh={async () => {
             setRefreshing(true);
             await load();
@@ -258,10 +258,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     borderWidth: 2,
-    borderColor: colors.amber,
+    borderColor: colors.amberStrong,
     borderRadius: 14,
     paddingHorizontal: 14,
   },
-  link: { color: colors.amber, fontWeight: "800", fontSize: 16 },
+  link: { color: colors.amberStrong, fontWeight: "800", fontSize: 16 },
   error: { color: colors.signWhite, backgroundColor: colors.danger, padding: 12, borderRadius: 10, fontSize: 16 },
 });

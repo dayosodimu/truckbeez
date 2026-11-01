@@ -138,7 +138,7 @@ export function MapScreen({ navigation }: Props) {
         userInterfaceStyle="dark"
       >
         {route && (
-          <Polyline coordinates={route.coordinates.map(toCoord)} strokeColor={colors.amber} strokeWidth={6} />
+          <Polyline coordinates={route.coordinates.map(toCoord)} strokeColor={colors.amberStrong} strokeWidth={6} />
         )}
         {destination && <Marker coordinate={toCoord(destination)} title="Destination" />}
         {reports.map((r) => (

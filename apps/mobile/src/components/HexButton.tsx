@@ -20,7 +20,7 @@ export function HexButton({ label, onPress, size = 96 }: Props) {
     >
       <View style={{ width: w, height: h }}>
         <Svg width={w} height={h}>
-          <Polygon points={points} fill={colors.amber} />
+          <Polygon points={points} fill={colors.amber} stroke={colors.amberStrong} strokeWidth={2} />
         </Svg>
         <View style={[StyleSheet.absoluteFill, styles.center]}>
           <Text style={styles.label}>{label}</Text>
@@ -32,5 +32,5 @@ export function HexButton({ label, onPress, size = 96 }: Props) {
 
 const styles = StyleSheet.create({
   center: { alignItems: "center", justifyContent: "center" },
-  label: { color: colors.night, fontSize: 18, fontWeight: "800" },
+  label: { color: colors.onBrand, fontSize: 18, fontWeight: "800" },
 });

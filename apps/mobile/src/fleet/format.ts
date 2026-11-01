@@ -5,7 +5,7 @@ export const DAY = 86_400_000;
 
 export const STATUS_META: Record<DriverStatus, { label: string; color: string }> = {
   driving: { label: "Driving", color: colors.go },
-  stopped: { label: "Stopped", color: colors.amber },
+  stopped: { label: "Stopped", color: colors.amberStrong },
   off_duty: { label: "Off duty", color: colors.lane },
 };
 
