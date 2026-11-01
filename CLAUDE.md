@@ -12,19 +12,19 @@ Core capabilities:
 - **Truck POIs** – truck stops, parking, fuel, scales, rest areas, repair.
 - **B2B subscription (fleet)** – logistics business owners subscribe to track and report on their drivers' navigation: live location, trip history, route adherence, ETA, hazmat compliance reports.
 
-## Proposed technical stack
-As of November 2026 the repo has no application code yet, so this is the **proposed starting stack**. Agents scaffolding new code use it. Once code exists, agents follow what the repo actually uses, and this table is updated whenever a choice changes.
+## Technical stack
+The starter code lives in `apps/mobile` and `apps/server`. Agents follow what the repo actually uses; the "Planned" column is where it is headed, and this table is updated whenever a choice changes.
 
-| Layer | Default |
-|---|---|
-| Mobile | React Native + TypeScript (iOS & Android), offline-capable map tiles |
-| Web (fleet dashboard) | React + TypeScript (Next.js) |
-| API | Node.js + TypeScript (NestJS), REST + WebSocket for live tracking |
-| Data | PostgreSQL + PostGIS, Redis (live positions, rate limits), object storage for trip traces |
-| Routing | Commercial truck-routing engine (e.g. HERE / TomTom / Trimble) or self-hosted OSRM/Valhalla with truck profiles, behind an internal `routing-service` abstraction |
-| Payments | Stripe Billing for B2B subscriptions (seat-based per driver) |
-| Infra | Containers, Terraform, GitHub Actions CI/CD |
-| Testing | Appium (mobile E2E – preferred), Playwright (web), Jest/Vitest (unit), k6 (load), axe (a11y) |
+| Layer | In the repo now | Planned |
+|---|---|---|
+| Mobile | Expo (React Native + TypeScript), react-native-maps, expo-location | Offline-capable map tiles, background location |
+| Fleet dashboard | Built into the mobile app (`apps/mobile/src/screens/fleet/`) | Optional React + TypeScript (Next.js) web dashboard |
+| API | Node.js + TypeScript, Express + zod, Socket.IO for live tracking (`apps/server`) | Same stack, hosted over HTTPS |
+| Data | In memory (reports, fleet orgs, trips) | PostgreSQL + PostGIS, Redis (live positions, rate limits), object storage for trip traces |
+| Routing | HERE Routing v8 truck mode behind `apps/server/src/lib/routing.ts`; demo straight-line route without a key | Same adapter; provider can be swapped |
+| Payments | Stripe Checkout + webhook for Fleet plans; demo billing without a key | Stripe Billing, seat-based per driver |
+| Infra | None yet | Containers, Terraform, GitHub Actions CI/CD |
+| Testing | None yet in the repo | Appium (mobile E2E – preferred), Playwright (web), Vitest/Jest (unit), k6 (load), axe (a11y) |
 
 ## Tooling & tracking
 - **Code:** GitHub repo `truckbeez`
@@ -37,7 +37,7 @@ As of November 2026 the repo has no application code yet, so this is the **propo
 2. **Hazmat correctness beats route speed.** Never return a route that violates a hazmat or dimensional restriction to save time. If data is uncertain, warn.
 3. **Location data is sensitive.** Driver location is personal data. Fleet visibility is limited to on-duty time and to the subscribing company. Follow the security agent's data-handling rules.
 4. **Everything is tested.** No feature is "done" without automated tests and a passing CI pipeline.
-5. **Small, reviewable changes.** Conventional commits; one concern per PR; link the Jira key (e.g. `TB-123`) in branch names and commit messages.
+5. **Small, reviewable changes.** Conventional commits; one concern per PR; link the Jira key from the Bees Routes project (e.g. `BR-38`) in branch names and commit messages.
 
 ## Agent roster and hand-offs
 | Agent | Owns | Hands off to |
