@@ -1,0 +1,48 @@
+# Containerised data stores for STAGING and PREPROD.
+# Production uses managed Postgres (PostGIS, PITR backups) and managed Redis,
+# so this file is NOT included in the prod stack.
+
+services:
+  api:
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  postgres:
+    image: postgis/postgis:16-3.4-alpine
+    environment:
+      POSTGRES_DB: truckbeez
+      POSTGRES_USER: truckbeez
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U truckbeez -d truckbeez"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - backend
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?set REDIS_PASSWORD}"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" --no-auth-warning ping | grep PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    restart: unless-stopped
+    networks:
+      - backend
+
+volumes:
+  pgdata: {}
+  redisdata: {}

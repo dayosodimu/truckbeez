@@ -1,0 +1,33 @@
+{
+  "name": "@truckbeez/api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TruckBeez API (Express + Socket.IO)",
+  "type": "module",
+  "main": "dist/server.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/server.js",
+    "dev": "tsx watch src/server.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run --reporter=default --reporter=junit --outputFile.junit=reports/junit.xml"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^22.15.0",
+    "socket.io-client": "^4.8.1",
+    "supertest": "^7.1.0",
+    "@types/supertest": "^6.0.3",
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.0"
+  }
+}

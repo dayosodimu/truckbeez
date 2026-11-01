@@ -1,0 +1,129 @@
+# TruckBeez API — container pipeline
+#
+#   PR:          unit tests (container) → build runtime image + vulnerability scan (no push)
+#   push main:   unit tests → build, scan, push image → staging → preprod → production
+#
+# The image is built ONCE and promoted by digest. Production waits for a
+# required reviewer on the GitHub `production` environment.
+
+name: ci-cd
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  IMAGE_NAME: ghcr.io/dayosodimu/truckbeez-api
+  TRIVY_IMAGE: aquasec/trivy:0.58.1
+
+jobs:
+  unit-tests:
+    name: Unit tests (container)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      # TODO: pin first-party actions by SHA too once the repo's pinning policy is set.
+      - uses: actions/checkout@v4
+
+      - name: Run unit tests in the test container
+        run: |
+          mkdir -p reports/api
+          docker compose -p truckbeez-unit -f deploy/compose.unit.yaml run --rm --build api-unit
+
+      - name: Upload JUnit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-unit-junit
+          path: reports/api
+          if-no-files-found: warn
+
+  build-image:
+    name: Build, scan and publish image
+    needs: unit-tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.publish.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build runtime image
+        run: |
+          TAG="${IMAGE_NAME}:sha-${GITHUB_SHA::12}"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          docker build \
+            --target runtime \
+            --build-arg APP_VERSION="${GITHUB_SHA}" \
+            --label org.opencontainers.image.revision="${GITHUB_SHA}" \
+            -t "$TAG" \
+            services/api
+
+      - name: Scan image (fail on fixable Critical/High)
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$TRIVY_IMAGE" \
+            image --exit-code 1 --severity CRITICAL,HIGH --ignore-unfixed --no-progress "$TAG"
+
+      - name: Push image and resolve digest
+        id: publish
+        if: github.event_name != 'pull_request'
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker push "$TAG"
+          DIGEST_REF="$(docker inspect --format '{{index .RepoDigests 0}}' "$TAG")"
+          echo "Published $DIGEST_REF"
+          echo "image=$DIGEST_REF" >> "$GITHUB_OUTPUT"
+
+  deploy-staging:
+    name: Deploy → staging
+    needs: build-image
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: read
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: staging
+      target: staging
+      image: ${{ needs.build-image.outputs.image }}
+    secrets: inherit
+
+  deploy-preprod:
+    name: Deploy → pre-production
+    needs: [build-image, deploy-staging]
+    permissions:
+      contents: read
+      packages: read
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: preprod
+      target: preprod
+      image: ${{ needs.build-image.outputs.image }}
+    secrets: inherit
+
+  deploy-prod:
+    name: Deploy → production
+    needs: [build-image, deploy-preprod]
+    permissions:
+      contents: read
+      packages: read
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: production
+      target: prod
+      image: ${{ needs.build-image.outputs.image }}
+    secrets: inherit

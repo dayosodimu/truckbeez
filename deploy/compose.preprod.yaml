@@ -1,0 +1,21 @@
+# PRE-PRODUCTION — a mirror of prod: same replica count, same resource limits,
+# same log level, anonymised prod-shaped data. Final gate before prod: release
+# candidates soak here and run the @smoke, @routing-safety and k6 load suites.
+#
+#   docker compose -p truckbeez-preprod \
+#     -f deploy/compose.base.yaml -f deploy/compose.data.yaml -f deploy/compose.preprod.yaml up -d --wait
+
+name: truckbeez-preprod
+
+services:
+  api:
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+    restart: always
+    environment:
+      APP_ENV: preprod
+      LOG_LEVEL: info

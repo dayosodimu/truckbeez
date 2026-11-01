@@ -1,0 +1,25 @@
+# PRODUCTION — deployed only after preprod passes and a reviewer approves the
+# GitHub `production` environment. Data stores are managed services
+# (DATABASE_URL / REDIS_URL come from the prod env file), so compose.data.yaml
+# is intentionally not part of this stack.
+#
+#   docker compose -p truckbeez-prod \
+#     -f deploy/compose.base.yaml -f deploy/compose.prod.yaml up -d --wait
+
+name: truckbeez-prod
+
+services:
+  api:
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+    restart: always
+    environment:
+      APP_ENV: prod
+      LOG_LEVEL: info
+
+  edge:
+    restart: always

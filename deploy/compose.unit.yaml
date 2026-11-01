@@ -1,0 +1,22 @@
+# UNIT — throwaway test container. Builds the Dockerfile's `test` stage,
+# runs typecheck + Vitest, writes a JUnit report to ./reports, and exits with
+# the test result as its exit code.
+#
+#   docker compose -p truckbeez-unit -f deploy/compose.unit.yaml run --rm --build api-unit
+#
+# No network, no data stores: unit tests must not depend on anything external.
+# (API integration tests with Postgres/Redis belong in a separate suite.)
+
+name: truckbeez-unit
+
+services:
+  api-unit:
+    build:
+      context: ../services/api
+      target: test
+    image: truckbeez-api:unit
+    environment:
+      APP_ENV: unit
+    network_mode: none
+    volumes:
+      - ../reports/api:/app/reports

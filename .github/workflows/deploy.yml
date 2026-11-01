@@ -1,0 +1,97 @@
+# Reusable deploy job: ships deploy/ to the environment's Docker host over SSH
+# and runs deploy/deploy.sh (which rolls back automatically on failure).
+#
+# Per GitHub environment (staging, preprod, production) configure:
+#   secrets: DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS, ENV_FILE
+#   vars:    PUBLIC_URL (optional; enables the external smoke check)
+#   production only: Required reviewers + deployment branch = main
+
+name: deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: GitHub environment name (staging | preprod | production)
+        type: string
+        required: true
+      target:
+        description: deploy.sh target (staging | preprod | prod)
+        type: string
+        required: true
+      image:
+        description: Immutable image reference (name@sha256:...)
+        type: string
+        required: true
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  deploy:
+    name: ${{ inputs.environment }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ vars.PUBLIC_URL }}
+    concurrency:
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+    env:
+      REMOTE: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+      REMOTE_DIR: truckbeez/deploy
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+
+      - name: Upload deploy bundle
+        # Excluded paths (env files, rollback state) are never deleted on the host.
+        run: |
+          ssh "$REMOTE" "mkdir -p $REMOTE_DIR/env"
+          rsync -az --delete \
+            --exclude 'env/*.env' --exclude '.last-good-image.*' \
+            deploy/ "$REMOTE:$REMOTE_DIR/"
+
+      - name: Write environment file from secret
+        env:
+          ENV_FILE_CONTENT: ${{ secrets.ENV_FILE }}
+        run: |
+          printf '%s\n' "$ENV_FILE_CONTENT" | \
+            ssh "$REMOTE" "umask 077 && cat > $REMOTE_DIR/env/${{ inputs.target }}.env"
+
+      - name: Deploy ${{ inputs.image }}
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          echo "$GHCR_TOKEN" | ssh "$REMOTE" "docker login ghcr.io -u '${{ github.actor }}' --password-stdin"
+          set +e
+          ssh "$REMOTE" "bash $REMOTE_DIR/deploy.sh '${{ inputs.target }}' '${{ inputs.image }}'"
+          status=$?
+          set -e
+          ssh "$REMOTE" "docker logout ghcr.io" || true
+          exit $status
+
+      - name: External smoke check
+        if: vars.PUBLIC_URL != ''
+        run: |
+          curl -fsS --retry 5 --retry-delay 5 "${{ vars.PUBLIC_URL }}/healthz"
+          curl -fsS "${{ vars.PUBLIC_URL }}/version" | tee /tmp/version.json
+          grep -q '"env":"${{ inputs.target }}"' /tmp/version.json
+
+      # Pre-production gate: plug the QA suites in here (owned by
+      # truckbeez-qa-automation-engineer): @smoke + @routing-safety API suites and
+      # the k6 load profile. A failure stops promotion to production.
+      - name: Release-candidate suites (preprod only)
+        if: inputs.target == 'preprod'
+        run: echo "TODO(TB-xxx) run @smoke, @routing-safety and k6 against ${{ vars.PUBLIC_URL }}"
