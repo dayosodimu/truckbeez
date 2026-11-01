@@ -38,4 +38,4 @@ Run `/agents` in Claude Code to view or edit them.
 ## Customizing
 - `tools:` in an agent's frontmatter limits what it can do (UX designer and security engineer are already restricted). Remove the line to grant all tools.
 - Add `model: opus` (or `sonnet`/`haiku`) to an agent's frontmatter to pin its model.
-- Update the "Proposed technical stack" table in `CLAUDE.md` once the stack is confirmed — every agent follows it.
+- Keep the "Technical stack" table in `CLAUDE.md` current: every agent follows it.

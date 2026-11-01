@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "name": "TruckBeez",
+    "slug": "truckbeez",
+    "version": "0.1.0",
+    "orientation": "default",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "bundleIdentifier": "com.beesroute.truckbeez",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.beesroute.truckbeez"
+    }
+  }
+}
