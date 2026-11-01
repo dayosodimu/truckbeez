@@ -1,0 +1,21 @@
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+
+# Environment files hold secrets (e.g. HERE_API_KEY). Commit .env.example only.
+.env
+.env.*
+!.env.example
+
+# Expo / React Native
+.expo/
+web-build/
+ios/
+android/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
