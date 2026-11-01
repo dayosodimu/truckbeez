@@ -4,4 +4,5 @@ A Waze-style navigation and routing app built for truck drivers, with truck-lega
 
 ## Project setup
 - **Shared project context and rules:** [`CLAUDE.md`](CLAUDE.md)
+- **Container environments (unit, staging, pre-production, production):** [`docs/deployment.md`](docs/deployment.md)
 - **AI agent team:** [`docs/agents.md`](docs/agents.md). Role-specific Claude Code agents live in [`.claude/agents/`](.claude/agents/).
