@@ -56,6 +56,14 @@ describe('buildHereRouteUrl', () => {
     expect(params.get('apikey')).toBe('test-key');
   });
 
+  it('ignores floating-point noise when rounding up', () => {
+    // 4.11 * 100 is 411.00000000000006 in floating point; that must still be 411 cm.
+    for (const heightM of [4.11, 4.15, 4.29, 4.57]) {
+      const url = buildHereRouteUrl({ ...routeRequest, truck: { ...routeRequest.truck, heightM } }, 'k');
+      expect(url.searchParams.get('vehicle[height]')).toBe(String(Math.round(heightM * 100)));
+    }
+  });
+
   it('never rounds a dimension down', () => {
     const url = buildHereRouteUrl({ ...routeRequest, truck: { ...routeRequest.truck, heightM: 4.111 } }, 'k');
     expect(url.searchParams.get('vehicle[height]')).toBe('412');

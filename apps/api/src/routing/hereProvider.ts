@@ -37,7 +37,13 @@ export interface HereProviderOptions {
   timeoutMs?: number;
 }
 
-const metresToCentimetres = (metres: number): string => String(Math.ceil(metres * 100));
+/**
+ * Rounds up to a whole unit. The value is first snapped to 6 decimals so floating-point noise
+ * (4.11 * 100 = 411.00000000000006) doesn't add a phantom unit.
+ */
+export const ceilWhole = (value: number): number => Math.ceil(Math.round(value * 1e6) / 1e6);
+
+const metresToCentimetres = (metres: number): string => String(ceilWhole(metres * 100));
 
 /** Builds the HERE Routing v8 request. Dimensions are rounded up so the engine never sees a smaller truck. */
 export function buildHereRouteUrl(request: RouteRequest, apiKey: string): URL {
@@ -52,7 +58,7 @@ export function buildHereRouteUrl(request: RouteRequest, apiKey: string): URL {
   params.set('vehicle[height]', metresToCentimetres(truck.heightM));
   params.set('vehicle[width]', metresToCentimetres(truck.widthM));
   params.set('vehicle[length]', metresToCentimetres(truck.lengthM));
-  params.set('vehicle[grossWeight]', String(Math.ceil(truck.grossWeightKg)));
+  params.set('vehicle[grossWeight]', String(ceilWhole(truck.grossWeightKg)));
   params.set('vehicle[axleCount]', String(truck.axleCount));
 
   const hazardousGoods = toHereHazardousGoods(truck.hazmatClasses);
