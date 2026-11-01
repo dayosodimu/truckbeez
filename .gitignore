@@ -1,0 +1,9 @@
+node_modules/
+dist/
+reports/
+coverage/
+*.log
+# Real env files hold secrets — only *.env.example files are committed.
+.env
+deploy/env/*.env
+!deploy/env/*.env.example

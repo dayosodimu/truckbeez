@@ -1,0 +1,65 @@
+# Shared definition for every DEPLOYED environment (staging, preprod, prod).
+# Always combined with an environment override, e.g.:
+#   docker compose -p truckbeez-staging -f deploy/compose.base.yaml -f deploy/compose.staging.yaml up -d
+#
+# API_IMAGE must be an immutable reference (ghcr.io/...@sha256:...) so every
+# environment runs exactly the build that passed the previous stage.
+
+name: truckbeez
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  api:
+    image: ${API_IMAGE:?set API_IMAGE to an immutable image reference}
+    env_file:
+      - ${ENV_FILE:?set ENV_FILE to the environment's .env file}
+    environment:
+      PORT: "3000"
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/healthz >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    stop_grace_period: 15s
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging: *default-logging
+    networks:
+      - backend
+
+  # Edge proxy: load-balances across api replicas and handles WebSocket upgrade
+  # for live tracking. TLS terminates at the cloud load balancer / CDN in front.
+  edge:
+    image: nginx:1.27-alpine
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${EDGE_PORT:-8080}:8080"
+    volumes:
+      - ./nginx/edge.conf:/etc/nginx/conf.d/default.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+    logging: *default-logging
+    networks:
+      - backend
+
+networks:
+  backend: {}
