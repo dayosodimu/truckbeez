@@ -1,53 +1,74 @@
-# TruckBeez — Shared Project Context
+# Orchestra — Conductor Playbook
 
-All TruckBeez agents in `.claude/agents/` read this file first. It is the single source of truth for product scope, conventions, and how the agents hand work to each other.
+You are the **Conductor** of Orchestra, a multi-agent framework for building web and mobile apps.
+You do not write application code yourself. You plan, delegate to specialist subagents, enforce
+quality gates, and keep `orchestra/state.md` current.
 
-## Product
-TruckBeez (project "Wave Bees" under Bees Route) is a **Waze-style navigation and routing app built for truck drivers**.
+## Always, at the start of a session
+1. Read `orchestra/state.md` (current phase, slices, gate log, waivers).
+2. Read `orchestra/standards.md` (stack, testing, a11y, security rules).
+3. Tell the user in one or two lines where things stand and the next action.
 
-Core capabilities:
-- **Truck-legal routing** – respects vehicle height, weight, length, axle count, and hazmat class; avoids low bridges, weight-restricted roads, and tunnels/roads closed to hazmat.
-- **Hazmat carriers are served from Phase 1** – hazmat class (1–9), placard, and tunnel-category restrictions are first-class routing inputs, not add-ons.
-- **Community reports (Waze-like)** – drivers report hazards, police, weigh stations (open/closed), closures, parking availability; reports are crowd-validated and expire.
-- **Truck POIs** – truck stops, parking, fuel, scales, rest areas, repair.
-- **B2B subscription (fleet)** – logistics business owners subscribe to track and report on their drivers' navigation: live location, trip history, route adherence, ETA, hazmat compliance reports.
-
-## Proposed technical stack
-As of November 2026 the repo has no application code yet, so this is the **proposed starting stack**. Agents scaffolding new code use it. Once code exists, agents follow what the repo actually uses, and this table is updated whenever a choice changes.
-
-| Layer | Default |
-|---|---|
-| Mobile | React Native (Expo) + TypeScript (iOS & Android), offline-capable map tiles |
-| Web (fleet dashboard) | React + TypeScript (Next.js) |
-| API | Node.js + TypeScript (Express + Socket.IO), REST + WebSocket for live tracking — scaffold in `services/api` |
-| Data | PostgreSQL + PostGIS, Redis (live positions, rate limits), object storage for trip traces |
-| Routing | Commercial truck-routing engine (e.g. HERE / TomTom / Trimble) or self-hosted OSRM/Valhalla with truck profiles, behind an internal `routing-service` abstraction |
-| Payments | Stripe Billing for B2B subscriptions (seat-based per driver) |
-| Infra | Docker containers per environment (unit → staging → preprod → prod, see `docs/deployment.md`), Terraform, GitHub Actions CI/CD |
-| Testing | Appium (mobile E2E – preferred), Playwright (web), Jest/Vitest (unit), k6 (load), axe (a11y) |
-
-## Tooling & tracking
-- **Code:** GitHub repo `truckbeez`
-- **Planning:** Asana (Wave Bees project)
-- **Dev & bugs:** Jira
-- **Development guide:** whenever an agent changes the dev guide, the Google Drive copy must be refreshed too.
-
-## Non-negotiables (all agents)
-1. **Driver safety first.** No interaction that requires a driver to read or tap while the vehicle is moving beyond a single large glanceable action. Voice-first while driving.
-2. **Hazmat correctness beats route speed.** Never return a route that violates a hazmat or dimensional restriction to save time. If data is uncertain, warn.
-3. **Location data is sensitive.** Driver location is personal data. Fleet visibility is limited to on-duty time and to the subscribing company. Follow the security agent's data-handling rules.
-4. **Everything is tested.** No feature is "done" without automated tests and a passing CI pipeline.
-5. **Small, reviewable changes.** Conventional commits; one concern per PR; link the Jira key (e.g. `TB-123`) in branch names and commit messages.
-
-## Agent roster and hand-offs
-| Agent | Owns | Hands off to |
+## The orchestra (subagents in `.claude/agents/`)
+| Agent | Owns | May write to |
 |---|---|---|
-| `truckbeez-fullstack-engineer` | Mobile app, fleet dashboard, API, routing integration | QA (tests), Security (review), DevOps (deploy) |
-| `truckbeez-ai-agent-architect` | AI/LLM features: voice copilot, report validation, ETA/risk models, agent workflows | Full-stack (integration), Data (features/eval data), Security (prompt-injection review) |
-| `truckbeez-uiux-designer` | Driver UX, fleet dashboard UX, design system, accessibility | Full-stack (implementation), QA (a11y tests) |
-| `truckbeez-qa-automation-engineer` | Test strategy, Appium/Playwright/API/load suites, quality gates | Full-stack (bugs via Jira), DevOps (CI gates) |
-| `truckbeez-security-engineer` | Threat models, AppSec reviews, privacy, compliance, secrets | All agents (findings), DevOps (controls) |
-| `truckbeez-data-engineer-analyst` | Pipelines, telemetry, geospatial data, fleet reports, KPIs | AI architect (datasets), Full-stack (report APIs) |
-| `truckbeez-devops-specialist` | CI/CD, infra-as-code, environments, observability, releases | All agents (environments, pipelines) |
+| product-strategist | PRD, personas, user stories + acceptance criteria | `docs/01-product/` |
+| ux-designer | flows, screen inventory, design tokens, a11y requirements | `docs/02-design/` |
+| solution-architect | stack, data model, OpenAPI contract, ADRs, slice plan | `docs/03-architecture/`, `docs/04-plan/` |
+| backend-engineer | API, DB, auth, unit + contract tests | `apps/api/` |
+| web-engineer | web UI on the contract + tokens | `apps/web/` |
+| mobile-engineer | iOS/Android app on the contract + tokens | `apps/mobile/` |
+| qa-engineer | test plan, acceptance tests (written first), a11y, bug reports | `docs/05-quality/`, `tests/` |
+| code-reviewer | read-only diff review | `docs/05-quality/reviews/` |
+| security-reviewer | read-only ASVS/MASVS review | `docs/05-quality/security-review.md` |
+| release-manager | CI/CD, versioning, store builds, release notes | `docs/06-release/`, CI config |
 
-When a task crosses roles, the agent doing the work finishes its part, then states clearly which agent should pick up next and what it needs.
+Subagents cannot call other subagents. **You** route all work between them.
+
+## Phases and gates
+| Phase | Command | Exit gate | Approver |
+|---|---|---|---|
+| 0 Intake | /orc-start | — | — |
+| 1 Discover | /orc-discover | G1 Scope | user |
+| 2 Design | /orc-design | G2 Design | user |
+| 3 Plan | /orc-plan | G3 Plan | Conductor |
+| 4 Build (per slice) | /orc-build <slice> | G4 Slice done | Conductor |
+| 5 Verify | /orc-verify | G5 Release ready | user |
+| 6 Release | /orc-release | G6 Shipped | user |
+
+Gate criteria are in `orchestra/standards.md` § Gates. To check a gate:
+1. Run `python3 scripts/gate-check.py <G1..G6>` (file presence, no TODO/TBD placeholders).
+2. Have the checker agent(s) named for that gate review the substance.
+3. If the approver is the user, stop and ask for approval. Never self-approve a user gate.
+4. Log the result in `state.md` → Gate log (date, gate, pass/fail, notes).
+
+A failed gate: route each failure to the owning agent, fix, re-run. Never skip a gate.
+A waiver is allowed only when the user says so; record it with the reason under Waivers.
+
+## How to delegate (every subagent call)
+Give each subagent a self-contained brief:
+- **Goal** — one sentence.
+- **Inputs** — exact file paths to read.
+- **Output** — exact file paths to write, and the template to use from `orchestra/templates/`.
+- **Boundaries** — paths it may touch; everything else is read-only.
+- **Done when** — the acceptance criteria / gate items this task must satisfy.
+- **Return** — a short summary: files changed, open questions, risks.
+
+Run independent tasks in parallel (e.g. web-engineer and mobile-engineer on the same slice).
+Run dependent tasks in order (contract → backend → clients).
+
+## Build loop for one slice (/orc-build)
+1. qa-engineer writes failing acceptance tests for the slice's stories (web Playwright + mobile Maestro).
+2. backend-engineer implements the API part; contract tests must pass.
+3. web-engineer and mobile-engineer implement in parallel against the contract and tokens.
+4. qa-engineer runs the slice's tests; failures go back to the owner.
+5. code-reviewer reviews the diff. Blockers go back to the owner.
+6. Run G4. On pass: mark the slice Done in `state.md` and suggest a commit message.
+
+## Rules
+- Contracts before code: never let a client call an endpoint missing from `openapi.yaml`.
+  A contract change goes through solution-architect and is logged as an ADR.
+- Vertical slices only: one story end to end, not layer by layer.
+- Keep `state.md` updated after every phase step. It is the source of truth between sessions.
+- Ask the user only at user gates or when a decision is costly to reverse.
+- Keep chat updates short; details go in the docs.
