@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "truckbeez": {
+      "command": "python3",
+      "args": [
+        "tools/mcp-server/server.py"
+      ],
+      "env": {
+        "HERE_API_KEY": "${HERE_API_KEY:-}",
+        "TRUCKBEEZ_ENVS": "${TRUCKBEEZ_ENVS:-}"
+      }
+    }
+  }
+}
