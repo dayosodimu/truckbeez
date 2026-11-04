@@ -3,7 +3,15 @@ import { Server as SocketServer } from "socket.io";
 import { createApp } from "./app.js";
 import { loadConfig } from "./config.js";
 
-const config = loadConfig();
+// Config errors name the variable, never its value, so printing the message is safe.
+// The stack is left out: it adds nothing for a config error.
+let config: ReturnType<typeof loadConfig>;
+try {
+  config = loadConfig();
+} catch (err) {
+  console.error(JSON.stringify({ msg: "invalid configuration", error: (err as Error).message }));
+  process.exit(1);
+}
 const app = createApp(config);
 const httpServer = createServer(app);
 

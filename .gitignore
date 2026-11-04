@@ -3,7 +3,38 @@ dist/
 reports/
 coverage/
 *.log
-# Real env files hold secrets — only *.env.example files are committed.
+
+# ---- Secrets: never committed (docs/secrets.md) -------------------------------
+# Real env files hold secrets. Only *.env.example files are committed, and they
+# hold placeholders like <here-api-key> that deployed environments refuse.
 .env
-deploy/env/*.env
-!deploy/env/*.env.example
+.env.*
+*.env
+!.env.example
+!*.env.example
+!**/.env.example
+
+# Keys, certificates and signing material
+*.pem
+*.key
+*.p8
+*.p12
+*.pfx
+*.jks
+*.keystore
+!debug.keystore
+*.mobileprovision
+credentials.json
+service-account*.json
+*-service-account.json
+
+# Mobile build credentials (Expo/EAS and native)
+apps/mobile/credentials/
+apps/mobile/google-services.json
+apps/mobile/GoogleService-Info.plist
+
+# Local secret folders and tool state
+secrets/
+.secrets/
+.npmrc
+!/.npmrc.example

@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+# Blocks commits that contain secrets (docs/secrets.md). Enable once per clone:
+#   git config core.hooksPath .githooks
+set -e
+
+node scripts/check-secrets.mjs --staged
+
+# gitleaks adds hundreds of provider-specific rules when it is installed locally.
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --redact --config .gitleaks.toml
+fi
