@@ -22,7 +22,7 @@ services/api/migrations/            services/api/test/
 apps/mobile/app/ (Expo Router)  apps/mobile/src/{screens,components,api}
 apps/web/app/ (Next.js)         packages/shared/src/ (Zod schemas + types from 06)
 tests/e2e-web/ (Playwright)     tests/e2e-mobile/ (Appium + WebdriverIO)   tests/load/ (k6)
-docker/  docker-compose.yml  .github/workflows/
+deploy/ (Compose per environment)  .github/workflows/
 ```
 
 ## Workflow
