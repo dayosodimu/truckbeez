@@ -14,6 +14,7 @@ import {
   compliantRoute,
   DRY_VAN,
   EXAMPLE_POLYLINE,
+  fakeSecret,
   jsonResponse,
   NEWARK,
   PHILADELPHIA,
@@ -21,7 +22,7 @@ import {
 } from "./fixtures.js";
 
 const params = (profile: TruckProfile) =>
-  buildHereRouteUrl(NEWARK, PHILADELPHIA, profile, "test-key").searchParams;
+  buildHereRouteUrl(NEWARK, PHILADELPHIA, profile, fakeSecret()).searchParams;
 
 describe("decodeFlexiblePolyline", () => {
   it("decodes HERE's published example", () => {
@@ -55,7 +56,8 @@ describe("ceilWhole", () => {
 
 describe("buildHereRouteUrl", () => {
   it("sends truck mode, both ends and the full truck profile", () => {
-    const url = buildHereRouteUrl(NEWARK, PHILADELPHIA, DRY_VAN, "test-key");
+    const key = fakeSecret();
+    const url = buildHereRouteUrl(NEWARK, PHILADELPHIA, DRY_VAN, key);
     const p = url.searchParams;
     assert.equal(url.origin + url.pathname, "https://router.hereapi.com/v8/routes");
     assert.equal(p.get("transportMode"), "truck");
@@ -68,6 +70,7 @@ describe("buildHereRouteUrl", () => {
     assert.equal(p.get("vehicle[axleCount]"), "5");
     assert.equal(p.has("vehicle[shippedHazardousGoods]"), false);
     assert.equal(p.has("vehicle[tunnelCategory]"), false);
+    assert.equal(p.get("apiKey"), key);
   });
 
   it("sends hazmat goods once each, and the tunnel category", () => {
@@ -168,7 +171,7 @@ describe("getTruckRoute", () => {
 
   it("returns a compliant HERE route", async () => {
     const outcome = await getTruckRoute(NEWARK, PHILADELPHIA, DRY_VAN, {
-      apiKey: "k",
+      apiKey: fakeSecret(),
       fetchFn: fetchReturning(jsonResponse(compliantRoute())),
     });
     assert.equal(outcome.kind, "ok");
@@ -176,20 +179,21 @@ describe("getTruckRoute", () => {
 
   it("@routing-safety turns a violating HERE route into no_safe_route", async () => {
     const outcome = await getTruckRoute(NEWARK, PHILADELPHIA, DRY_VAN, {
-      apiKey: "k",
+      apiKey: fakeSecret(),
       fetchFn: fetchReturning(jsonResponse(violatingRoute({ title: "Violated vehicle restriction.", severity: "critical" }))),
     });
     assert.equal(outcome.kind, "no_safe_route");
   });
 
   it("does not leak the HERE error body (it can echo the API key)", async () => {
-    const leaky = new Response("bad request for ...&apiKey=SECRET-KEY", { status: 400 });
+    const key = fakeSecret();
+    const leaky = new Response(`bad request for ...&apiKey=${key}`, { status: 400 });
     await assert.rejects(
-      getTruckRoute(NEWARK, PHILADELPHIA, DRY_VAN, { apiKey: "SECRET-KEY", fetchFn: fetchReturning(leaky) }),
+      getTruckRoute(NEWARK, PHILADELPHIA, DRY_VAN, { apiKey: key, fetchFn: fetchReturning(leaky) }),
       (err: unknown) => {
         assert.ok(err instanceof RoutingProviderError);
         assert.equal(err.status, 400);
-        assert.ok(!err.message.includes("SECRET-KEY"));
+        assert.ok(!err.message.includes(key));
         return true;
       }
     );
@@ -199,9 +203,9 @@ describe("getTruckRoute", () => {
     const failing = (async () => {
       throw new TypeError("fetch failed");
     }) as unknown as typeof fetch;
-    await assert.rejects(getTruckRoute(NEWARK, PHILADELPHIA, DRY_VAN, { apiKey: "k", fetchFn: failing }), RoutingProviderError);
+    await assert.rejects(getTruckRoute(NEWARK, PHILADELPHIA, DRY_VAN, { apiKey: fakeSecret(), fetchFn: failing }), RoutingProviderError);
     await assert.rejects(
-      getTruckRoute(NEWARK, PHILADELPHIA, DRY_VAN, { apiKey: "k", fetchFn: fetchReturning(new Response("<html>")) }),
+      getTruckRoute(NEWARK, PHILADELPHIA, DRY_VAN, { apiKey: fakeSecret(), fetchFn: fetchReturning(new Response("<html>")) }),
       RoutingProviderError
     );
   });
@@ -215,7 +219,7 @@ describe("getTruckRoute", () => {
   it("@routing-safety refuses the straight-line demo route in production", async () => {
     await assert.rejects(getTruckRoute(NEWARK, PHILADELPHIA, DRY_VAN, { apiKey: "", nodeEnv: "production" }));
     assert.throws(() => assertRoutingConfigured({ NODE_ENV: "production" }));
-    assert.doesNotThrow(() => assertRoutingConfigured({ NODE_ENV: "production", HERE_API_KEY: "k" }));
+    assert.doesNotThrow(() => assertRoutingConfigured({ NODE_ENV: "production", HERE_API_KEY: fakeSecret() }));
     assert.doesNotThrow(() => assertRoutingConfigured({ NODE_ENV: "development" }));
   });
 });

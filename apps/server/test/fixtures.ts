@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import type { HereNotice, HereRoutesResponse } from "../src/lib/hereRouting.js";
 import type { LatLng, TruckProfile } from "../src/types.js";
 
@@ -40,3 +41,9 @@ export const violatingRoute = (notice: HereNotice): HereRoutesResponse => compli
 
 export const jsonResponse = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+
+/**
+ * Mock API key, generated fresh each run. Never write a key literal in a test, not even
+ * "test-key" (docs/secrets.md); the repo's secret scanner rejects them.
+ */
+export const fakeSecret = (prefix = ""): string => `${prefix}${randomBytes(24).toString("hex")}`;
