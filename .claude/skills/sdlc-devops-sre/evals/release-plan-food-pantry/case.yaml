@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: release-plan-food-pantry
+expected_outcome: |
+  Defines environments and a promotion flow where the same build artifact moves to production; Covers mobile store release with staged rollout and a minimum-version or forced-update approach; Gives a rollback method and time to restore per component, including the database; Every alert has a threshold and links to a runbook or response step; Sizes on-call and SLOs for a 3-person team rather than an enterprise setup; Contains no TruckBeez-specific content (no TruckBeez, hazmat, trucks, Express, Socket.IO or Expo); Marks unconfirmed choices with [Assumption] or an assumptions/open questions section

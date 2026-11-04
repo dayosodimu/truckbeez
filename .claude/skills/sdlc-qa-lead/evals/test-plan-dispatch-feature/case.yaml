@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: test-plan-dispatch-feature
+expected_outcome: |
+  Test case IDs use TC-W / TC-M / TC-A style and each names the requirement ID(s) it covers; Steps use concrete values and expected results are specific and observable (UI text, status code or timing); Includes negative cases: a dispatcher targeting another fleet's driver, and a driver who is offline when the route is sent; Includes a driving-safety case (e.g. accept blocked while the truck is moving); Each case states its automation tool (Playwright, Appium, API, Manual); Includes RTM rows with a coverage status and states the coverage count; Ends with a Handoffs list
