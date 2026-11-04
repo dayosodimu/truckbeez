@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: playwright-appium-dispatch
+expected_outcome: |
+  Playwright specs use the Page Object Model with page classes in a separate file; Locators use getByTestId or getByRole, and there is no waitForTimeout; Test titles start with TC IDs and include requirement IDs; An Appium/WebdriverIO spec uses accessibility-ID selectors and simulates movement (GPX replay or setGeoLocation/speed); Includes a negative test for dispatching to another fleet's driver that asserts a 403 or a visible error; A playwright config and .env.example (or env-var usage) for base URL and credentials are included; npx playwright test --list (or an equivalent check) was run and its result reported

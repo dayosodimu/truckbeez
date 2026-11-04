@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: openapi-and-migration-dispatch
+expected_outcome: |
+  An OpenAPI 3.1 YAML file exists and parses as valid YAML; Each operation has an operationId, security, and x-requirements listing requirement IDs; Responses include the documented error codes using a shared Error schema; A migration file creates the dispatches table with typed columns, a status CHECK constraint, and an index with a comment on the query it serves; The migration has a down step that reverses it; Zod schemas or TypeScript types for the shared contract are provided; The final report states which validation checks were run
