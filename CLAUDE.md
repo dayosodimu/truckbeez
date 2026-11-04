@@ -21,7 +21,7 @@ As of November 2026 the repo has no application code yet, so this is the **propo
 | Web (fleet dashboard) | React + TypeScript (Next.js) |
 | API | Node.js + TypeScript (Express + Socket.IO), REST + WebSocket for live tracking — scaffold in `services/api` |
 | Data | PostgreSQL + PostGIS, Redis (live positions, rate limits), object storage for trip traces |
-| Routing | Commercial truck-routing engine (e.g. HERE / TomTom / Trimble) or self-hosted OSRM/Valhalla with truck profiles, behind an internal `routing-service` abstraction |
+| Routing | **HERE Routing API v8** (truck mode) behind the `RoutingProvider` interface; routes with `critical` notices are always discarded. TomTom is the fallback. See [ADR-0001](docs/adr/0001-truck-routing-engine.md) |
 | Payments | Stripe Billing for B2B subscriptions (seat-based per driver) |
 | Infra | Docker containers per environment (unit → staging → preprod → prod, see `docs/deployment.md`), Terraform, GitHub Actions CI/CD |
 | Testing | Appium (mobile E2E – preferred), Playwright (web), Jest/Vitest (unit), k6 (load), axe (a11y) |
