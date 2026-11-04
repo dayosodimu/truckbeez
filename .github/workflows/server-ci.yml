@@ -1,0 +1,37 @@
+name: server-ci
+
+# Typecheck + tests for apps/server, including the @routing-safety suite.
+# A @routing-safety failure means a truck could be sent down a road it may not use:
+# it blocks the merge (CLAUDE.md non-negotiable #2, ADR-0001).
+
+on:
+  pull_request:
+    paths: ["apps/server/**", ".github/workflows/server-ci.yml"]
+  push:
+    branches: [main]
+    paths: ["apps/server/**", ".github/workflows/server-ci.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # No lockfile yet (BR-46); switch to `npm ci` once package-lock.json is committed.
+      - run: npm install --no-audit --no-fund
+      - run: npm run typecheck
+      - name: Routing safety (@routing-safety)
+        run: npm run test:routing-safety
+      - name: All tests
+        run: npm test
+        env:
+          # Live HERE matrix runs only when this repository secret is set.
+          HERE_API_KEY: ${{ secrets.HERE_API_KEY }}

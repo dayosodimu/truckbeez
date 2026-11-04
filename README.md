@@ -13,7 +13,7 @@ apps/
 ## What's included
 
 - **Truck profile** (height, width, length, weight, axles, hazmat) sent with every route request.
-- **Truck routing** through a provider adapter. HERE Routing v8 (`transportMode=truck`) is wired up; with no API key the server returns a straight-line demo route so the app still runs.
+- **Truck routing** through a provider adapter. HERE Routing v8 (`transportMode=truck`) is wired up; with no API key the server returns a straight-line demo route so the app still runs. Routes HERE flags with a critical restriction notice are never returned (the API answers `422 NO_SAFE_ROUTE`), and production refuses to start without `HERE_API_KEY`. See [ADR-0001](docs/adr/0001-truck-routing-engine.md).
 - **Crowdsourced reports**: accident, police, closure, hazard, low clearance, weigh station open/closed, truck parking full. Reports expire automatically and other drivers can confirm them to keep them alive.
 - **Live updates** over Socket.IO, so new reports appear on every nearby driver's map instantly.
 - **Driver-safe UI**: large tap targets, one-tap reporting, high-contrast night palette.
@@ -26,6 +26,8 @@ cd apps/server
 cp .env.example .env        # add HERE_API_KEY for real truck routing
 npm install
 npm run dev                 # http://localhost:4000
+npm test                    # all server tests
+npm run test:routing-safety # only the @routing-safety suite (runs the live HERE matrix too if HERE_API_KEY is set)
 ```
 
 ## Run the mobile app

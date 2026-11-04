@@ -6,9 +6,13 @@ import { Server } from "socket.io";
 import { stripeWebhook } from "./fleet/billing.js";
 import { fleetRouter, orgRoom } from "./fleet/routes.js";
 import { getMember, pruneFleet } from "./fleet/store.js";
+import { assertRoutingConfigured } from "./lib/routing.js";
 import { pruneExpired } from "./lib/store.js";
 import { reportsRouter } from "./routes/reports.js";
 import { routeRouter } from "./routes/route.js";
+
+// Refuse to start in production without a HERE key: the demo route is a straight line.
+assertRoutingConfigured(process.env);
 
 const app = express();
 const http = createServer(app);

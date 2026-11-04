@@ -85,7 +85,12 @@ export function MapScreen({ navigation }: Props) {
           edgePadding: { top: 80, right: 40, bottom: 220, left: 40 },
         });
       })
-      .catch((e) => setError(e.message));
+      .catch((e) => {
+        // Never leave the previous route on the map: after a profile change (e.g. a hazmat
+        // load was added) it may no longer be legal for this truck.
+        setRoute(null);
+        setError(e.message);
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [destination, profile]);
 
