@@ -45,7 +45,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Until a host exists for this environment, skip the deploy with a visible
+      # warning instead of failing the whole pipeline on an empty ssh target.
+      - name: Preflight — deploy secrets configured?
+        id: preflight
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          if [ -n "$DEPLOY_HOST" ] && [ -n "$DEPLOY_USER" ] && [ -n "$DEPLOY_SSH_KEY" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Deploy skipped (${{ inputs.environment }})::DEPLOY_HOST / DEPLOY_USER / DEPLOY_SSH_KEY are not set for the '${{ inputs.environment }}' environment, so nothing was deployed."
+            echo "### ⚠️ ${{ inputs.environment }} deploy skipped — deploy secrets not configured" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Configure SSH
+        if: steps.preflight.outputs.configured == 'true'
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
@@ -56,6 +74,7 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
 
       - name: Upload deploy bundle
+        if: steps.preflight.outputs.configured == 'true'
         # Excluded paths (env files, rollback state) are never deleted on the host.
         run: |
           ssh "$REMOTE" "mkdir -p $REMOTE_DIR/env"
@@ -64,6 +83,7 @@ jobs:
             deploy/ "$REMOTE:$REMOTE_DIR/"
 
       - name: Write environment file from secret
+        if: steps.preflight.outputs.configured == 'true'
         env:
           ENV_FILE_CONTENT: ${{ secrets.ENV_FILE }}
         run: |
@@ -71,6 +91,7 @@ jobs:
             ssh "$REMOTE" "umask 077 && cat > $REMOTE_DIR/env/${{ inputs.target }}.env"
 
       - name: Deploy ${{ inputs.image }}
+        if: steps.preflight.outputs.configured == 'true'
         env:
           GHCR_TOKEN: ${{ github.token }}
         run: |
@@ -83,7 +104,7 @@ jobs:
           exit $status
 
       - name: External smoke check
-        if: vars.PUBLIC_URL != ''
+        if: steps.preflight.outputs.configured == 'true' && vars.PUBLIC_URL != ''
         run: |
           curl -fsS --retry 5 --retry-delay 5 "${{ vars.PUBLIC_URL }}/healthz"
           curl -fsS "${{ vars.PUBLIC_URL }}/version" | tee /tmp/version.json
@@ -93,5 +114,5 @@ jobs:
       # truckbeez-qa-automation-engineer): @smoke + @routing-safety API suites and
       # the k6 load profile. A failure stops promotion to production.
       - name: Release-candidate suites (preprod only)
-        if: inputs.target == 'preprod'
+        if: steps.preflight.outputs.configured == 'true' && inputs.target == 'preprod'
         run: echo "TODO(TB-xxx) run @smoke, @routing-safety and k6 against ${{ vars.PUBLIC_URL }}"
