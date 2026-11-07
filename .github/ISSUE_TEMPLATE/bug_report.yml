@@ -1,0 +1,167 @@
+# TruckBeez bug report (BR-11, docs/qa/bug-triage.md).
+# Jira (Bees Routes project) is the source of truth: triage copies this into a Jira Bug
+# under BR-2 and links both ways.
+name: Bug report
+description: Something in TruckBeez is broken or wrong. Unsafe routing is always Critical.
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. **If a route sent a truck under a low bridge, onto a weight-restricted or truck-banned road, or broke hazmat rules, pick Critical.**
+        Don't paste API keys, passwords or access codes (redact them from logs), and don't paste another driver's location history.
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity (your best guess; triage confirms)
+      options:
+        - "Critical: unsafe routing, crash while navigating, data loss or location shared when it shouldn't be"
+        - "High: core feature broken, no workaround"
+        - "Medium: works wrongly or unreliably, workaround exists"
+        - "Low: cosmetic or minor UX"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Routing / truck profile
+        - Navigation / voice / rerouting
+        - Community reports
+        - Truck POIs
+        - Fleet (duty sharing, dashboard, trips)
+        - Subscription / billing
+        - Offline / background / battery
+        - Accessibility
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Android
+        - iOS
+        - Both
+        - API / server only
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Device model and OS version
+      placeholder: "Galaxy A15, Android 14 (One UI 6.1)"
+    validations:
+      required: true
+
+  - type: input
+    id: app-version
+    attributes:
+      label: App version (build) and commit if known
+      placeholder: "0.3.0 (142)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - local
+        - staging
+        - preprod
+        - prod
+    validations:
+      required: true
+
+  - type: textarea
+    id: truck-profile
+    attributes:
+      label: Truck profile
+      description: Required for routing bugs.
+      placeholder: "height 427 cm, width 259 cm, length 2200 cm, gross weight 36287 kg, axles 5, hazmat: none, tunnel category: none"
+
+  - type: textarea
+    id: route
+    attributes:
+      label: Route / location
+      description: Origin, destination, where it went wrong, routing provider (here or demo). Attach the GPX or trace if you have one.
+      placeholder: |
+        Origin: 40.7420,-74.1710
+        Destination: 40.8160,-74.1590
+        Went wrong at: 40.7620,-74.1660 (NJ-21 N ramp)
+        Provider: here
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+    validations:
+      required: true
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: How often
+      options:
+        - Always
+        - Sometimes
+        - Once
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots or screen recording
+      description: Drag files here. At least one is required by the bug template.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Device log, API request id, CI or Allure run link. Redact credentials first.
+      render: shell
+
+  - type: input
+    id: story
+    attributes:
+      label: Affected story or use case (Jira key)
+      placeholder: "BR-32"
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I removed API keys, passwords and other drivers' personal data from this report.
+          required: true
+        - label: I searched existing issues for a duplicate.
+          required: false
