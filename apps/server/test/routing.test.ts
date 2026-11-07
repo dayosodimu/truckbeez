@@ -217,9 +217,21 @@ describe("getTruckRoute", () => {
   });
 
   it("@routing-safety refuses the straight-line demo route in production", async () => {
-    await assert.rejects(getTruckRoute(NEWARK, PHILADELPHIA, DRY_VAN, { apiKey: "", nodeEnv: "production" }));
+    await assert.rejects(getTruckRoute(NEWARK, PHILADELPHIA, DRY_VAN, { apiKey: "", nodeEnv: "production", allowDemoRoute: "" }));
     assert.throws(() => assertRoutingConfigured({ NODE_ENV: "production" }));
     assert.doesNotThrow(() => assertRoutingConfigured({ NODE_ENV: "production", HERE_API_KEY: fakeSecret() }));
     assert.doesNotThrow(() => assertRoutingConfigured({ NODE_ENV: "development" }));
+  });
+
+  it("@routing-safety refuses the demo route anywhere it was not explicitly allowed (BR-51-S1)", async () => {
+    for (const NODE_ENV of [undefined, "", "staging", "preprod", "prod", "Production", "dev"]) {
+      assert.throws(() => assertRoutingConfigured({ NODE_ENV }), /HERE_API_KEY is required/, `NODE_ENV=${NODE_ENV}`);
+      await assert.rejects(
+        getTruckRoute(NEWARK, PHILADELPHIA, DRY_VAN, { apiKey: "", nodeEnv: NODE_ENV, allowDemoRoute: "" })
+      );
+    }
+    assert.doesNotThrow(() => assertRoutingConfigured({ NODE_ENV: "test" }));
+    assert.doesNotThrow(() => assertRoutingConfigured({ ALLOW_DEMO_ROUTE: "true" }));
+    assert.throws(() => assertRoutingConfigured({ ALLOW_DEMO_ROUTE: "1" }));
   });
 });

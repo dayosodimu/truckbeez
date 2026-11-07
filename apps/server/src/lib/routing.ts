@@ -15,20 +15,33 @@ export class RoutingProviderError extends Error {
 export interface RoutingOptions {
   apiKey?: string;
   nodeEnv?: string;
+  allowDemoRoute?: string;
   fetchFn?: typeof fetch;
   timeoutMs?: number;
 }
 
-/** Production must never fall back to the straight-line demo route. */
-export function assertRoutingConfigured(env: { NODE_ENV?: string; HERE_API_KEY?: string }): void {
-  if (env.NODE_ENV === "production" && !env.HERE_API_KEY) {
-    throw new Error("HERE_API_KEY is required in production: the demo route is not truck-safe.");
+type RoutingEnv = { NODE_ENV?: string; HERE_API_KEY?: string; ALLOW_DEMO_ROUTE?: string };
+
+/**
+ * The straight-line demo route ignores every truck restriction, so it is opt-in, never the
+ * default: only NODE_ENV=development|test or ALLOW_DEMO_ROUTE=true may use it. Staging,
+ * preprod, an unset or misspelled NODE_ENV: no key means the server refuses (BR-51-S1).
+ */
+export function isDemoRouteAllowed(env: RoutingEnv): boolean {
+  return env.NODE_ENV === "development" || env.NODE_ENV === "test" || env.ALLOW_DEMO_ROUTE === "true";
+}
+
+export function assertRoutingConfigured(env: RoutingEnv): void {
+  if (!env.HERE_API_KEY && !isDemoRouteAllowed(env)) {
+    throw new Error(
+      "HERE_API_KEY is required: the demo route is not truck-safe. For local development set ALLOW_DEMO_ROUTE=true."
+    );
   }
 }
 
 /**
  * Truck-safe routing with HERE Routing API v8 (ADR-0001).
- * Without a key, development gets a straight-line demo route; production refuses.
+ * Without a key, only explicitly allowed local/test environments get the demo route.
  */
 export async function getTruckRoute(
   origin: LatLng,
@@ -37,12 +50,13 @@ export async function getTruckRoute(
   {
     apiKey = process.env.HERE_API_KEY,
     nodeEnv = process.env.NODE_ENV,
+    allowDemoRoute = process.env.ALLOW_DEMO_ROUTE,
     fetchFn = fetch,
     timeoutMs = DEFAULT_TIMEOUT_MS,
   }: RoutingOptions = {}
 ): Promise<RouteOutcome> {
   if (!apiKey) {
-    assertRoutingConfigured({ NODE_ENV: nodeEnv, HERE_API_KEY: apiKey });
+    assertRoutingConfigured({ NODE_ENV: nodeEnv, HERE_API_KEY: apiKey, ALLOW_DEMO_ROUTE: allowDemoRoute });
     return { kind: "ok", route: demoRoute(origin, destination) };
   }
 
