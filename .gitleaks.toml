@@ -1,0 +1,15 @@
+# gitleaks config (docs/secrets.md). Extends gitleaks' built-in rules.
+title = "TruckBeez secret scanning"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Placeholders and generated test values are not secrets"
+regexes = [
+  '''<[a-z0-9-]+>''',          # <postgres-password>, <here-api-key>
+  '''\$\{[A-Z0-9_]+(:-[^}]*)?\}''', # ${HERE_API_KEY:-} interpolation
+]
+paths = [
+  '''(^|/)package-lock\.json$''',
+]
