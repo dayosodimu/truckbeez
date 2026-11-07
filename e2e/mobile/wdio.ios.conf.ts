@@ -1,7 +1,6 @@
-import type { Options } from "@wdio/types";
 import { requireApp, shared } from "./wdio.shared.conf.js";
 
-export const config: Options.Testrunner = {
+export const config: WebdriverIO.Config = {
   ...shared,
   capabilities: [
     {

@@ -55,7 +55,7 @@ jobs:
       - run: npm run test:unit
 
   android-smoke:
-    name: Android emulator (${{ inputs.grep || '@smoke' }})
+    name: Android emulator E2E
     needs: checks
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04

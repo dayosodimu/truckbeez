@@ -1,11 +1,10 @@
-import type { Options } from "@wdio/types";
 import { collectEvidence, startEvidence } from "./src/support/evidence.js";
 
 /**
  * Shared WebdriverIO config. Platform configs (wdio.android.conf.ts, wdio.ios.conf.ts)
  * add capabilities. Select suites by tag: `--mochaOpts.grep @smoke`.
  */
-export const shared: Omit<Options.Testrunner, "capabilities"> = {
+export const shared: Omit<WebdriverIO.Config, "capabilities"> = {
   runner: "local",
   specs: ["./test/specs/**/*.spec.ts"],
   maxInstances: 1,
