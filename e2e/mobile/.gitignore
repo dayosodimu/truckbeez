@@ -1,0 +1,6 @@
+node_modules/
+reports/
+*.apk
+*.aab
+*.ipa
+*.app
