@@ -1,0 +1,26 @@
+# Validates the analytics event schema (BR-57) whenever it changes.
+# No dependencies: uses Node's built-in test runner.
+name: data-schema
+
+on:
+  pull_request:
+    paths: ["docs/data/**", ".github/workflows/data-schema.yml"]
+  push:
+    branches: [main]
+    paths: ["docs/data/**", ".github/workflows/data-schema.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  events-schema:
+    name: Event schema check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: node --test
+        run: node --test "docs/data/*.test.mjs"
