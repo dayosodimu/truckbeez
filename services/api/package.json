@@ -17,6 +17,7 @@
     "test:unit": "vitest run --reporter=default --reporter=junit --outputFile.junit=reports/junit.xml"
   },
   "dependencies": {
+    "@sentry/node": "~11.11.0",
     "express": "^5.1.0",
     "socket.io": "^4.8.1"
   },
