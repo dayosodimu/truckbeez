@@ -42,15 +42,26 @@ This ADR records why HERE stays, what was compared, and what still has to be fix
 4. **Trimble PC\*Miler HazMat is the reference to test against.** The `@routing-safety` suite compares HERE routes for hazmat profiles against known prohibited segments and, where a trial key allows, against PC\*Miler HazMat routes.
 5. **Google LVR and OSM engines are not used for Phase 1 routing.**
 
+### How `apps/server` enforces this (PR #10)
+PR #10 ports PR #2's rules into `apps/server/src/lib/hereRouting.ts` and `routing.ts`. These rules are covered by the `@routing-safety` tests, which block the merge in `server-ci`:
+
+1. **Any notice that is not exactly `info` makes the route unusable**, at section or top level. This is stricter than "critical only": an unknown or missing severity fails safe. It also covers time-dependent restrictions, since no departure time is sent.
+2. **No safe route means no route.** `POST /api/route` answers `422 NO_SAFE_ROUTE` with the reasons and no geometry, and the app clears any route it was showing.
+3. **Dimensions and weight are rounded up**, never down.
+4. **Unknown hazmat values are rejected** (`400`) against HERE's 11 categories, never silently dropped.
+5. **`tunnelCategory` is sent** whenever the profile has one.
+6. **The straight-line demo route is opt-in:** only `NODE_ENV=development|test` or `ALLOW_DEMO_ROUTE=true`. Any other environment without `HERE_API_KEY` refuses to start and to route (security finding BR-51-S1).
+7. **HERE error bodies never reach clients.** They can echo the request URL, which contains the API key.
+
 ## Consequences
 
 ### Must fix before launch
 | # | Item | Owner agent | Jira |
 |---|---|---|---|
-| 1 | **PR #3 safety gap:** `apps/server/src/lib/routing.ts` returns routes with critical notices. Replace it with PR #2's provider, or port the notice check, rounding, hazmat mapping and tunnel category, with tests. | fullstack-engineer, then qa-automation-engineer | BR-38 |
+| 1 | **PR #3 safety gap:** `apps/server/src/lib/routing.ts` returns routes with critical notices. Replace it with PR #2's provider, or port the notice check, rounding, hazmat mapping and tunnel category, with tests. **Addressed by PR #10** (see "How `apps/server` enforces this"), except the UN class mapping (item 3). | fullstack-engineer, then qa-automation-engineer | BR-38 |
 | 2 | **Choose one layout:** `main` has `services/api`, PR #2 has `apps/api`, PR #3 has `apps/server`. There should be one API and one routing module. | fullstack-engineer, devops-specialist | BR-1 / BR-38 |
-| 3 | **Hazmat mapping review:** class 2.3 and 6.1 inhalation hazards need `poisonousInhalation`, so the truck profile must capture the division, not just the class. | security-engineer, fullstack-engineer | BR-1 |
-| 4 | **Routing-safety matrix:** truck profiles × known low bridges, weight-limited bridges, hazmat-prohibited roads and tunnels. Any returned route that crosses one fails CI. | qa-automation-engineer | new |
+| 3 | **Hazmat mapping review:** class 2.3 and 6.1 inhalation hazards need `poisonousInhalation`, so the truck profile must capture the division, not just the class. Today `apps/mobile/src/screens/ProfileScreen.tsx` offers only 6 of HERE's 11 categories (`flammable`, `explosive`, `gas`, `corrosive`, `poison`, `radioactive`). It is missing `poisonousInhalation`, `combustible`, `organic`, `harmfulToWater` and `other`, so a driver hauling an inhalation hazard cannot declare it at all. | security-engineer, fullstack-engineer | BR-1 |
+| 4 | **Routing-safety matrix:** truck profiles × known low bridges, weight-limited bridges, hazmat-prohibited roads and tunnels. Any returned route that crosses one fails CI. PR #10 adds the live runner (`apps/server/test/routing-safety.live.test.ts`), but `test/fixtures/live-restrictions.json` has **no cases yet** and the `HERE_API_KEY` repo secret is not set. Each case needs an official source (state DOT clearance list, posted signage, FMCSA/state hazmat route listing). | qa-automation-engineer | new |
 | 5 | **Licensing check:** confirm HERE terms allow fleet tracking and route replay for B2B customers, and whether storing route polylines is allowed. | security-engineer | new |
 
 ### Open decision: ADR-0002, in-app turn-by-turn navigation
