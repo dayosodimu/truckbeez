@@ -5,11 +5,12 @@ name: server-ci
 # it blocks the merge (CLAUDE.md non-negotiable #2, ADR-0001).
 
 on:
+  # apps/mobile/src/hazmat.ts is checked against the server's HERE list (BR-58).
   pull_request:
-    paths: ["apps/server/**", ".github/workflows/server-ci.yml"]
+    paths: ["apps/server/**", "apps/mobile/src/hazmat.ts", ".github/workflows/server-ci.yml"]
   push:
     branches: [main]
-    paths: ["apps/server/**", ".github/workflows/server-ci.yml"]
+    paths: ["apps/server/**", "apps/mobile/src/hazmat.ts", ".github/workflows/server-ci.yml"]
 
 permissions:
   contents: read
