@@ -6,8 +6,13 @@ export type TruckProfile = {
   lengthCm: number;
   grossWeightKg: number;
   axleCount: number;
-  /** HERE hazmat classes, e.g. "flammable", "explosive", "gas", "corrosive" */
+  /**
+   * HERE `shippedHazardousGoods` categories, e.g. "flammable", "explosive", "gas", "corrosive".
+   * Validated against HERE_HAZARDOUS_GOODS in routes/route.ts.
+   */
   hazmat: string[];
+  /** ADR tunnel restriction code for the load; routes only use less strict tunnels. */
+  tunnelCategory?: "B" | "C" | "D" | "E";
 };
 
 export const REPORT_TYPES = [
@@ -38,3 +43,8 @@ export type RouteResult = {
   coordinates: LatLng[];
   instructions: string[];
 };
+
+/** A route the truck may legally use, or the reasons none exists (UC-04). Never both. */
+export type RouteOutcome =
+  | { kind: "ok"; route: RouteResult }
+  | { kind: "no_safe_route"; reasons: string[] };

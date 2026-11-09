@@ -34,7 +34,8 @@ const handle = (fn: Handler) => (req: Request, res: Response, next: NextFunction
       next(err);
     });
 
-const parse = <T>(schema: z.ZodType<T>, body: unknown): T => {
+/** Returns the schema's OUTPUT type, so `.default()` fields are required after parsing. */
+const parse = <S extends z.ZodTypeAny>(schema: S, body: unknown): z.output<S> => {
   const r = schema.safeParse(body);
   if (!r.success) throw new FleetError(400, r.error.issues[0]?.message ?? "Invalid request.");
   return r.data;
