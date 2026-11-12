@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: spec-live-map-and-hazmat-picker
+expected_outcome: |
+  Screen specs using W-S/M-S IDs traced to FRs, with every state (loading, empty, error/offline, permission, success), accessibility rules with numbers, driving-safety considerations for the mobile picker, assumptions and handoffs.

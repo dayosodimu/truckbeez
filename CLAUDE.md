@@ -51,3 +51,8 @@ As of November 2026 the repo has no application code yet, so this is the **propo
 | `truckbeez-devops-specialist` | CI/CD, infra-as-code, environments, observability, releases | All agents (environments, pipelines) |
 
 When a task crosses roles, the agent doing the work finishes its part, then states clearly which agent should pick up next and what it needs.
+
+## SDLC documents and skills
+The SDLC document set lives in `docs/sdlc/` (00 overview, 01 charter … 12 operations); its `README.md` lists each document's owner. Requirement IDs (BR, FR-M/W/A, NFR, M-S/W-S, TC-M/W/A/P) link documents, code and tests, so keep them in code comments and test titles (`test('TC-A-003 … [FR-A-03]')`).
+
+Department skills in `.claude/skills/` (`sdlc-product-owner`, `sdlc-solution-architect`, `sdlc-design-lead`, `sdlc-backend-engineer`, `sdlc-qa-lead`, `sdlc-devops-sre`) write and update those documents and their code artifacts; `ultra-code` builds a feature slice from them. Use the matching skill when a task changes an SDLC document, and update the affected document in the same PR as the code.

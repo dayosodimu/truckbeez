@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: adr-here-vs-pcmiler
+expected_outcome: |
+  An ADR with ID, status Proposed, context tied to NFRs (battery, route latency, hazmat), options table with truck/hazmat coverage, licence/caching, pricing, SDK, a recommendation or criteria, consequences, revisit condition, and handoffs; vendor facts flagged as to-verify unless sourced.
