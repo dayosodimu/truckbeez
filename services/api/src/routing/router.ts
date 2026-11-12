@@ -6,6 +6,7 @@ import {
   type ApiErrorCode,
   type RouteResponse,
 } from "../contracts/route.js";
+import { hazmatSafetyAssumptions } from "./hazmat.js";
 import { RoutingProviderError, type RoutingProvider } from "./types.js";
 
 export type RouteLogger = Pick<Console, "warn" | "error">;
@@ -28,12 +29,14 @@ export function createRouteRouter(provider: RoutingProvider, logger: RouteLogger
 
     try {
       const result = await provider.route(parsed.data);
+      // Reported on success and on 422: an assumption may be why the route is longer, or missing.
+      const safetyAssumptions = hazmatSafetyAssumptions(parsed.data.truck.hazmatClasses);
       if (result.kind === "no_safe_route") {
         // 422 with no geometry at all: the app must have nothing to draw.
-        sendError(res, 422, "NO_SAFE_ROUTE", MESSAGES.noSafeRoute, { reasons: result.reasons });
+        sendError(res, 422, "NO_SAFE_ROUTE", MESSAGES.noSafeRoute, { reasons: result.reasons, safetyAssumptions });
         return;
       }
-      const body: RouteResponse = result.route;
+      const body: RouteResponse = { ...result.route, safetyAssumptions };
       res.json(body);
     } catch (error) {
       if (error instanceof RoutingProviderError) {

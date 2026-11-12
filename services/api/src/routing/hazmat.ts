@@ -1,4 +1,4 @@
-import type { HazmatClass } from "../contracts/route.js";
+import { MESSAGES, type HazmatClass, type SafetyAssumption } from "../contracts/route.js";
 
 /** Every value HERE Routing v8 accepts for `vehicle[shippedHazardousGoods]`. */
 export const HERE_HAZARDOUS_GOODS = [
@@ -39,4 +39,18 @@ export const HERE_GOODS_BY_CLASS: Record<HazmatClass, readonly HereHazardousGood
 export function toHereHazardousGoods(classes: readonly HazmatClass[]): HereHazardousGood[] {
   const goods = new Set(classes.flatMap((hazmatClass) => HERE_GOODS_BY_CLASS[hazmatClass]));
   return [...goods].sort();
+}
+
+/**
+ * Classes whose division the profile can't express yet, so they are routed as inhalation
+ * hazards (2.3, 6.1). Remove a class here only when the profile captures its division and
+ * the mapping above sends `poisonousInhalation` for the inhalation divisions alone.
+ */
+export const INHALATION_ASSUMED_CLASSES: readonly HazmatClass[] = [2, 6];
+
+/** The assumptions to report to the driver for these classes (ADR-0003 decision 3). */
+export function hazmatSafetyAssumptions(classes: readonly HazmatClass[]): SafetyAssumption[] {
+  const assumed = INHALATION_ASSUMED_CLASSES.filter((c) => classes.includes(c));
+  if (assumed.length === 0) return [];
+  return [{ code: "HAZMAT_INHALATION_ASSUMED", hazmatClasses: [...assumed], message: MESSAGES.hazmatInhalationAssumed }];
 }

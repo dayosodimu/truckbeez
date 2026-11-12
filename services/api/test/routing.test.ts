@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import { HAZMAT_CLASSES, truckProfileSchema, type TruckProfile } from "../src/contracts/route.js";
 import { createDemoProvider } from "../src/routing/demoProvider.js";
 import { decodeFlexiblePolyline } from "../src/routing/flexiblePolyline.js";
-import { HERE_GOODS_BY_CLASS, HERE_HAZARDOUS_GOODS, toHereHazardousGoods } from "../src/routing/hazmat.js";
+import {
+  HERE_GOODS_BY_CLASS,
+  HERE_HAZARDOUS_GOODS,
+  hazmatSafetyAssumptions,
+  INHALATION_ASSUMED_CLASSES,
+  toHereHazardousGoods,
+} from "../src/routing/hazmat.js";
 import {
   buildHereRouteUrl,
   ceilWhole,
@@ -188,6 +194,17 @@ describe("@routing-safety HERE never sees a smaller, lighter or cleaner truck", 
     const goods = toHereHazardousGoods([hazmatClass]);
     expect(goods.length).toBeGreaterThan(0);
     for (const good of goods) expect(HERE_HAZARDOUS_GOODS).toContain(good);
+  });
+
+  it("@routing-safety every class flagged as inhalation-assumed really sends poisonousInhalation", () => {
+    // Guards the pairing: the driver is never told about an assumption the engine did not apply.
+    for (const hazmatClass of INHALATION_ASSUMED_CLASSES) {
+      expect(HERE_GOODS_BY_CLASS[hazmatClass]).toContain("poisonousInhalation");
+    }
+    for (const hazmatClass of HAZMAT_CLASSES) {
+      const reported = hazmatSafetyAssumptions([hazmatClass]).length > 0;
+      expect(reported).toBe(INHALATION_ASSUMED_CLASSES.includes(hazmatClass));
+    }
   });
 
   it("@routing-safety inhalation hazards are assumed for classes 2 and 6 until the division is captured", () => {

@@ -46,7 +46,7 @@ describe("POST /api/route", () => {
       error: {
         code: "NO_SAFE_ROUTE",
         message: "No truck-safe route found for this vehicle.",
-        details: { reasons: ["Violated vehicle restriction."] },
+        details: { reasons: ["Violated vehicle restriction."], safetyAssumptions: [] },
       },
     });
     expect(JSON.stringify(res.body)).not.toMatch(/geometry|polyline/);
@@ -95,6 +95,38 @@ describe("POST /api/route", () => {
     expect(res.status).toBe(500);
     expect(res.body.error.code).toBe("INTERNAL_ERROR");
     expect(JSON.stringify(logger.error.mock.calls)).not.toContain("boom");
+  });
+
+  it("reports no safety assumptions for a load that needs none", async () => {
+    const res = await request(appWithHere(compliantRoute()))
+      .post("/api/route")
+      .send(routeRequest({ ...DRY_VAN, hazmatClasses: [3] }));
+    expect(res.status).toBe(200);
+    expect(res.body.safetyAssumptions).toEqual([]);
+  });
+
+  it.each([
+    [[2], [2]],
+    [[6], [6]],
+    [[2, 3, 6], [2, 6]],
+  ])("@routing-safety tells the driver classes %j are routed as inhalation hazards", async (declared, assumed) => {
+    const res = await request(appWithHere(compliantRoute()))
+      .post("/api/route")
+      .send(routeRequest({ ...DRY_VAN, hazmatClasses: declared as never }));
+    expect(res.status).toBe(200);
+    expect(res.body.safetyAssumptions).toEqual([
+      { code: "HAZMAT_INHALATION_ASSUMED", hazmatClasses: assumed, message: expect.stringContaining("inhalation hazard") },
+    ]);
+  });
+
+  it("@routing-safety keeps the inhalation assumption on a 422 so the driver knows why", async () => {
+    const notice = { title: "Violated avoid tunnel.", code: "violatedAvoidTunnel", severity: "critical" };
+    const res = await request(appWithHere(violatingRoute(notice)))
+      .post("/api/route")
+      .send(routeRequest({ ...DRY_VAN, hazmatClasses: [2], tunnelCategory: "C" }));
+    expect(res.status).toBe(422);
+    expect(res.body.error.details.safetyAssumptions[0].code).toBe("HAZMAT_INHALATION_ASSUMED");
+    expect(JSON.stringify(res.body)).not.toMatch(/geometry|polyline/);
   });
 
   it("serves the demo route in APP_ENV=unit when no key is configured", async () => {

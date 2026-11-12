@@ -83,6 +83,21 @@ export interface RouteInstruction {
   durationS: number;
 }
 
+/**
+ * A conservative assumption the server made because the truck profile lacks detail.
+ * Shown to the driver with the route (or with "no safe route") so a longer route, or no
+ * route, is never a silent surprise. Removed per code as the profile gains the detail.
+ */
+export type SafetyAssumptionCode = "HAZMAT_INHALATION_ASSUMED";
+
+export interface SafetyAssumption {
+  code: SafetyAssumptionCode;
+  /** The declared classes the assumption applies to. */
+  hazmatClasses: HazmatClass[];
+  /** Driver-facing, plain language. */
+  message: string;
+}
+
 /** Success body of `POST /api/route`. */
 export interface RouteResponse {
   geometry: LatLng[];
@@ -93,6 +108,8 @@ export interface RouteResponse {
   avoidedRestrictions: string[];
   /** True for the straight-line development route, which ignores every restriction. */
   isDemo: boolean;
+  /** Conservative assumptions applied to this request. Empty when none were needed. */
+  safetyAssumptions: SafetyAssumption[];
 }
 
 export type ApiErrorCode =
@@ -116,4 +133,6 @@ export const MESSAGES = {
   noSafeRoute: "No truck-safe route found for this vehicle.",
   routingProviderError: "Couldn't reach the routing service. Try again.",
   demoRouteSuffix: "(demo route)",
+  hazmatInhalationAssumed:
+    "Your gas or toxic load is routed as an inhalation hazard because your truck profile doesn't record the hazmat division yet. Some roads and tunnels may be avoided.",
 } as const;
