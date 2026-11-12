@@ -132,7 +132,6 @@ Each risk is checked in step E and recorded in that PR's description as verified
 | C7 | **Appium selectors.** The upgrade and the merge can rename or drop `testID`s. | The QA plan (PR #21) drives E2E with Appium. | Keep a `testID` inventory and diff it in step E; QA signs off. |
 | C8 | **Build tooling minimums** (Xcode, Android compile/target SDK, Node 22). | CI and store builds fail late otherwise. | Confirm the EAS/CI images meet SDK 54 minimums before step E. |
 | C9 | **Renamed and retiring modules:** `expo-av` is deprecated (SDK 54 is its last bundled release, replaced by `expo-audio` / `expo-video`); `expo-file-system` moves its old API to `expo-file-system/legacy`. | Voice guidance (ADR-0002) and offline storage use these. | Search PR #2 and PR #3 for `expo-av` and `expo-file-system` imports; move audio to `expo-audio` in step E rather than carrying a module that disappears in SDK 55. |
-
 | C10 | **SDK 54 is no longer the newest SDK.** SDK 55 (React Native 0.83, Legacy Architecture removed) shipped in February 2026. | Expo supports a limited window of recent SDKs, and app stores raise their minimum target SDK every year. Staying on 54 is a short stop, not a home. | After step E, open a follow-up to upgrade to the current SDK. Because C1 already rejects the Old Architecture opt-out, that upgrade should not need a rewrite. |
 
 Version numbers above are what SDK 54 is documented to require at the time of writing; step E re-checks them against the Expo SDK 54 changelog rather than trusting this table.
