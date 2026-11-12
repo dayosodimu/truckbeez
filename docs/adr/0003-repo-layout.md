@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Status** | Proposed: needs owner sign-off |
-| **Date** | 2026-11-07 |
+| **Status** | Accepted (2026-11-12, owner sign-off on decisions 1–3) |
+| **Date** | Proposed 2026-11-07, accepted 2026-11-12 |
 | **Jira** | BR-53 |
 | **Deciders** | Dayo Sodimu (owner) |
 | **Author** | fullstack-engineer |
@@ -109,8 +109,38 @@ The live HERE `@routing-safety` matrix from PR #10 (`routing-safety.live.test.ts
 - Until step B, contracts live in `services/api/src/contracts/` and the app is not on `main`; nothing consumes them twice yet, so no drift.
 - Deployed environments need `HERE_API_KEY` in `ENV_FILE` before step A merges, or the API refuses to start there.
 
-## Open decisions for the owner
+## Owner decisions (accepted 2026-11-12)
 
-1. **Expo SDK for the one app:** PR #3 is on SDK 52 / React 18, PR #2 on SDK 54 / React 19. Proposal: SDK 54, upgraded in step E before merging PR #2's pieces.
-2. **Fleet screens in the driver app vs. `apps/fleet-web`:** CLAUDE.md lists a Next.js dashboard; PR #3 built Fleet screens into the mobile app. Proposal: keep the mobile Fleet screens for owner-operators, start `apps/fleet-web` separately later.
-3. **Hazmat class 2 and 6 inhalation hazards:** PR #2 noted that 2.3 / 6.1 should also send `poisonousInhalation`. Proposal (step A): send it for every class 2 and 6 load until the profile captures the division; over-restricting is safe, under-restricting is a P0.
+| # | Decision | Owner's conditions |
+|---|---|---|
+| 1 | **Expo SDK 54 / React 19** for the one app. PR #3's app is upgraded from SDK 52 in step E before PR #2's pieces are merged in. | Compatibility of dependencies, navigation and native modules is verified **before** step E merges. See "Compatibility risks" below; each item is a merge gate for step E. |
+| 2 | **Fleet screens stay in the mobile app** for owner-operators. `apps/fleet-web` is a separate, later deliverable with its own ADR and Jira epic. | The fleet API (step D) is designed for both clients, so the web dashboard needs no API rewrite. |
+| 3 | **Classes 2 and 6 are routed as inhalation hazards** (`poisonousInhalation` sent for every class 2 and 6 load) until the truck profile captures the division. | The restriction is **communicated** to the driver on every affected route and refined when division-level data exists. See "Safety assumptions" below. |
+
+## Compatibility risks (decision 1, SDK 52 → 54)
+
+Each risk is checked in step E and recorded in that PR's description as verified, fixed or replaced. Step E does not merge with any item open.
+
+| # | Risk | Why it matters | Check before merging step E |
+|---|---|---|---|
+| C1 | **New Architecture default.** SDK 53+ enables the React Native New Architecture by default; SDK 54 is the last SDK that lets it be turned off. | Native modules without New Architecture support crash or misbehave at runtime, not at build time. | Run `npx expo-doctor` and React Native Directory checks on every native dependency; build iOS and Android dev clients with the New Architecture on. Any library that fails is replaced, not pinned with the architecture off, because SDK 55 removes the opt-out. |
+| C2 | **React 19 breaking changes** (removed `propTypes`/`defaultProps` on function components, string refs, legacy context; stricter ref handling). | PR #3 was written against React 18. | Typecheck with `@types/react` 19; search for `defaultProps`, string refs and `forwardRef` patterns; run the Jest suites from PR #2 and PR #3 together. |
+| C3 | **Navigation library.** React Navigation and `react-native-screens` / `react-native-safe-area-context` must be on versions built for SDK 54 and React 19. | Navigation drives every screen including the Fleet stack (decision 2). | Install with `npx expo install` (never a hand-picked version); smoke-test every route, deep link and the Fleet tab on both platforms. |
+| C4 | **Maps and location modules** (map view, `expo-location`, background location for on-duty tracking). | The core feature; background location behaves differently per OS and SDK. | Verify foreground and background location on a physical iOS and Android device; confirm permission prompts and the on-duty-only rule from the threat model (PR #20). |
+| C5 | **Reanimated / gesture handler / worklets.** Reanimated 4 needs the New Architecture and a separate worklets package. | Map gestures and animated panels. | Match the versions `expo install` selects; run on device, not only the simulator. |
+| C6 | **Jest and the test toolchain** (`jest-expo` preset matching SDK 54, React 19 test renderer). | PR #2's tests must stay green; `react-test-renderer` is deprecated with React 19. | Move component tests to React Native Testing Library where they use the test renderer. |
+| C7 | **Appium selectors.** The upgrade and the merge can rename or drop `testID`s. | The QA plan (PR #21) drives E2E with Appium. | Keep a `testID` inventory and diff it in step E; QA signs off. |
+| C8 | **Build tooling minimums** (Xcode, Android compile/target SDK, Node 22). | CI and store builds fail late otherwise. | Confirm the EAS/CI images meet SDK 54 minimums before step E. |
+
+Version numbers above are what SDK 54 is documented to require at the time of writing; step E re-checks them against the Expo SDK 54 changelog rather than trusting this table.
+
+## Safety assumptions (decision 3)
+
+| # | Assumption | Effect | How it is communicated | How it is refined |
+|---|---|---|---|---|
+| S1 | A class 2 load may be division 2.3 (toxic gas, inhalation hazard). | `poisonousInhalation` is sent with `gas` and `flammable`. Some roads and tunnels are avoided that a 2.1 or 2.2 load could legally use. | `POST /api/route` returns `safetyAssumptions: [{ code: "HAZMAT_INHALATION_ASSUMED", hazmatClasses: [2], message }]` on success **and** inside the 422 `NO_SAFE_ROUTE` details. The app shows it with the route (design spec: PR #17 truck profile and no-safe-route screens). | When the profile captures division (e.g. `hazmatDivisions: ["2.1"]`), the mapping sends `poisonousInhalation` only for 2.3, and class 2 is removed from `INHALATION_ASSUMED_CLASSES` in the same PR. |
+| S2 | A class 6 load may be division 6.1 with an inhalation hazard. | `poisonousInhalation` is sent with `poison` and `harmfulToWater`. | As S1, with `hazmatClasses: [6]`. | As S1, for 6.1 inhalation-hazard materials (Zone A–D) only; 6.2 infectious substances keep their own mapping. |
+| S3 | Over-restricting is acceptable; under-restricting is not. | Longer routes or no route for some loads. | The message tells the driver why. A `NO_SAFE_ROUTE` caused only by the assumption must never be shown as a generic error. | Track how often the assumption is present on 422s (event plan, PR #19) to prioritise capturing divisions. |
+| S4 | The driver's declared classes are correct. | The server cannot detect an undeclared load. | The profile editor (PR #17) asks for classes before the first route and on every edit. | Out of scope for routing; fleet compliance reports (step D) can flag mismatches later. |
+
+Code: `services/api/src/routing/hazmat.ts` (`HERE_GOODS_BY_CLASS`, `INHALATION_ASSUMED_CLASSES`, `hazmatSafetyAssumptions`). A `@routing-safety` test keeps the two lists paired, so the driver is never told about a restriction the engine was not sent, and never sent one without being told.
