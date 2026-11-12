@@ -13,12 +13,12 @@ Core capabilities:
 - **B2B subscription (fleet)** – logistics business owners subscribe to track and report on their drivers' navigation: live location, trip history, route adherence, ETA, hazmat compliance reports.
 
 ## Proposed technical stack
-As of November 2026 the repo has no application code yet, so this is the **proposed starting stack**. Agents scaffolding new code use it. Once code exists, agents follow what the repo actually uses, and this table is updated whenever a choice changes.
+This is the starting stack. Agents follow what the repo actually uses, and this table is updated whenever a choice changes. **Repo layout is fixed by ADR-0003** (`docs/adr/0003-repo-layout.md`): one API in `services/api`, one driver app in `apps/mobile` (Expo SDK 54 / React 19), shared contracts in `packages/shared`. Do not create `apps/api` or `apps/server`.
 
 | Layer | Default |
 |---|---|
-| Mobile | React Native (Expo) + TypeScript (iOS & Android), offline-capable map tiles |
-| Web (fleet dashboard) | React + TypeScript (Next.js) |
+| Mobile | React Native (Expo SDK 54, React 19, New Architecture) + TypeScript (iOS & Android), offline-capable map tiles |
+| Web (fleet dashboard) | React + TypeScript (Next.js), later deliverable; Fleet screens live in the mobile app for now (ADR-0003 decision 2) |
 | API | Node.js + TypeScript (Express + Socket.IO), REST + WebSocket for live tracking — scaffold in `services/api` |
 | Data | PostgreSQL + PostGIS, Redis (live positions, rate limits), object storage for trip traces |
 | Routing | Commercial truck-routing engine (e.g. HERE / TomTom / Trimble) or self-hosted OSRM/Valhalla with truck profiles, behind an internal `routing-service` abstraction |
