@@ -26,6 +26,14 @@ describe("api health endpoints", () => {
 });
 
 describe("loadConfig", () => {
+  it.each([undefined, "development"])(
+    "@routing-safety refuses to start when NODE_ENV=production and APP_ENV is %s (no demo route in a deployed image)",
+    (appEnv) => {
+      const env = { NODE_ENV: "production", HERE_API_KEY: fakeSecret(), ...(appEnv ? { APP_ENV: appEnv } : {}) };
+      expect(() => loadConfig(env)).toThrow(/APP_ENV must be set/);
+    }
+  );
+
   it("rejects an unknown APP_ENV", () => {
     expect(() => loadConfig({ APP_ENV: "qa" })).toThrow(/Invalid APP_ENV/);
   });
