@@ -35,9 +35,10 @@ As of November 2026 the repo has no application code yet, so this is the **propo
 ## Non-negotiables (all agents)
 1. **Driver safety first.** No interaction that requires a driver to read or tap while the vehicle is moving beyond a single large glanceable action. Voice-first while driving.
 2. **Hazmat correctness beats route speed.** Never return a route that violates a hazmat or dimensional restriction to save time. If data is uncertain, warn.
-3. **Location data is sensitive.** Driver location is personal data. Fleet visibility is limited to on-duty time and to the subscribing company. Follow the security agent's data-handling rules.
-4. **Everything is tested.** No feature is "done" without automated tests and a passing CI pipeline.
-5. **Small, reviewable changes.** Conventional commits; one concern per PR; link the Jira key (e.g. `TB-123`) in branch names and commit messages.
+3. **Secrets stay in the secret store.** API keys and passwords come only from environment variables (`Secret` objects that redact themselves), never from code, tests (generate mocks with `fakeSecret()`), the mobile app, or logs. See `docs/secrets.md`.
+4. **Location data is sensitive.** Driver location is personal data. Fleet visibility is limited to on-duty time and to the subscribing company. Follow the security agent's data-handling rules.
+5. **Everything is tested.** No feature is "done" without automated tests and a passing CI pipeline.
+6. **Small, reviewable changes.** Conventional commits; one concern per PR; link the Jira key (e.g. `TB-123`) in branch names and commit messages.
 
 ## Agent roster and hand-offs
 | Agent | Owns | Hands off to |
