@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import request from "supertest";
 import { createApp } from "../src/app.js";
+import { inspect } from "node:util";
 import { loadConfig } from "../src/config.js";
+import { fakeSecret } from "./helpers/fakeSecrets.js";
 
 describe("api health endpoints", () => {
   const app = createApp(loadConfig({ APP_ENV: "unit", APP_VERSION: "test-sha" }));
@@ -24,6 +26,14 @@ describe("api health endpoints", () => {
 });
 
 describe("loadConfig", () => {
+  it.each([undefined, "development", "unit"])(
+    "@routing-safety refuses to start when NODE_ENV=production and APP_ENV is %s (no demo route in a deployed image)",
+    (appEnv) => {
+      const env = { NODE_ENV: "production", HERE_API_KEY: fakeSecret(), ...(appEnv ? { APP_ENV: appEnv } : {}) };
+      expect(() => loadConfig(env)).toThrow(/APP_ENV must be set/);
+    }
+  );
+
   it("rejects an unknown APP_ENV", () => {
     expect(() => loadConfig({ APP_ENV: "qa" })).toThrow(/Invalid APP_ENV/);
   });
@@ -34,7 +44,33 @@ describe("loadConfig", () => {
   });
 
   it("accepts a fully configured prod environment", () => {
-    const cfg = loadConfig({ APP_ENV: "prod", DATABASE_URL: "postgres://x", REDIS_URL: "redis://y", PORT: "8080" });
+    const cfg = loadConfig({
+      APP_ENV: "prod",
+      DATABASE_URL: "postgres://x",
+      REDIS_URL: "redis://y",
+      HERE_API_KEY: fakeSecret(),
+      PORT: "8080",
+    });
     expect(cfg.port).toBe(8080);
+  });
+
+  it.each(["staging", "preprod", "prod"])("@routing-safety requires HERE_API_KEY when APP_ENV=%s", (appEnv) => {
+    const stores = { DATABASE_URL: "postgres://x", REDIS_URL: "redis://y" };
+    expect(() => loadConfig({ APP_ENV: appEnv, ...stores })).toThrow(/HERE_API_KEY is required/);
+    expect(() => loadConfig({ APP_ENV: appEnv, ...stores, HERE_API_KEY: "  " })).toThrow(/HERE_API_KEY is required/);
+  });
+
+  it("does not require HERE_API_KEY in development or unit", () => {
+    expect(loadConfig({ APP_ENV: "development" }).hereApiKey).toBeUndefined();
+    expect(loadConfig({ APP_ENV: "unit" }).hereApiKey).toBeUndefined();
+  });
+
+  it("keeps the HERE key out of logs and JSON", () => {
+    const key = fakeSecret();
+    const cfg = loadConfig({ APP_ENV: "development", HERE_API_KEY: key });
+    expect(cfg.hereApiKey?.reveal()).toBe(key);
+    for (const printed of [JSON.stringify(cfg), inspect(cfg), String(cfg.hereApiKey), `${cfg.hereApiKey}`]) {
+      expect(printed).not.toContain(key);
+    }
   });
 });
