@@ -2,6 +2,10 @@
 // Every "secret" here is generated at runtime, so this file contains none.
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
+import { spawnSync } from "node:child_process";
+import { cpSync, mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 import { scanText } from "./check-secrets.mjs";
 
@@ -60,8 +64,118 @@ describe("hard-coded key literals in code (mocks included)", () => {
     }
   });
 
-  it("respects an explicit allow comment", () => {
-    assert.deepEqual(rules("src/a.ts", `token: "abcdef" // secrets-scan: allow (public test vector)`), []);
+  const marker = (reason) => "// secrets-" + "scan: allow" + reason; // built at runtime so this file has no live marker
+
+  it("respects a trailing allow comment with a reason, and counts it", () => {
+    const stats = { allowed: 0 };
+    assert.deepEqual(scanText("src/a.ts", `token: "abcdef" ${marker(" (public test vector)")}`, stats), []); // secrets-scan: allow (scanner test input)
+    assert.equal(stats.allowed, 1);
+  });
+
+  it("ignores an allow marker with no reason, or one that is not trailing (M4)", () => {
+    const literal = `const apiKey = "${rnd()}";`;
+    assert.deepEqual(rules("src/a.ts", `${literal} ${marker("")}`), ["hard-coded-key-literal"]);
+    assert.deepEqual(rules("src/a.ts", `${literal} ${marker(" ()")}`), ["hard-coded-key-literal"]);
+    assert.deepEqual(rules("src/a.ts", `const apiKey = "${rnd()}"; log("${marker(" (x)")}");`), ["hard-coded-key-literal"]);
+  });
+
+  it("flags the common real-world leak shapes (M3)", () => {
+    const cases = [
+      `const k = process.env.HERE_API_KEY ?? "${rnd()}";`,
+      `const k = process.env["STRIPE_SECRET_KEY"] || '${rnd()}';`,
+      `const hereKey = "${rnd()}";`,
+      `stripe_key: "${rnd()}"`,
+      `credentials = "${rnd()}"`,
+      `headers: { Authorization: "Bearer ${rnd(32)}" }`,
+      `apiKey: "${upper(24)}"`,
+    ];
+    for (const line of cases) assert.ok(scanText("src/a.ts", line).length > 0, line);
+  });
+
+  it("does not flag ordinary keys and fallbacks", () => {
+    for (const line of [
+      `<Row key="driver-row" />`,
+      `sortKey: "name",`,
+      `const port = process.env.PORT ?? "3000";`,
+      `const appEnv = process.env.APP_ENV ?? "development";`,
+      "headers: { Authorization: `Bearer ${token}` }",
+      `apiKey: "HERE_API_KEY",`,
+    ]) {
+      assert.deepEqual(rules("src/a.ts", line), [], line);
+    }
+  });
+
+  it("flags newer provider tokens", () => {
+    assert.ok(rules("docs/x.md", "sk-" + "ant-" + rnd(40)).includes("anthropic-api-key"));
+    assert.ok(rules("docs/x.md", "npm" + "_" + rnd(36)).includes("npm-token"));
+    assert.ok(rules("docs/x.md", "SG" + "." + rnd(22) + "." + rnd(43)).includes("sendgrid-api-key"));
+  });
+});
+
+describe("file types beyond JS and env files (M2)", () => {
+  it("flags secret assignments in Dockerfile, Terraform, gradle.properties and docs", () => {
+    assert.ok(scanText("services/api/Dockerfile", `ENV HERE_API_KEY=${rnd()}`).length > 0);
+    assert.ok(scanText("infra/main.tf", `db_password = "${rnd()}"`).length > 0);
+    assert.ok(scanText("apps/mobile/android/gradle.properties", `MYAPP_UPLOAD_STORE_PASSWORD=${rnd()}`).length > 0);
+    assert.ok(scanText("docs/setup.md", `export STRIPE_SECRET_KEY=${rnd()}`).length > 0);
+  });
+
+  it("allows placeholders and variable references in those files", () => {
+    for (const [f, line] of [
+      ["services/api/Dockerfile", "ENV HERE_API_KEY=${HERE_API_KEY}"],
+      ["infra/main.tf", "db_password = var.db_password"],
+      ["docs/setup.md", "export HERE_API_KEY=<your-dev-key>"],
+      ["deploy/deploy.sh", 'export REDIS_PASSWORD="$REDIS_PASSWORD"'], // secrets-scan: allow (scanner test input)
+    ]) {
+      assert.deepEqual(rules(f, line), [], `${f}: ${line}`);
+    }
+  });
+
+  it("forbids committing any env-like or Terraform state file", () => {
+    for (const f of ["deploy/env/prod.env.bak", "deploy/env/prod.env.local", ".envrc", "infra/prod.tfvars", "infra/terraform.tfstate"]) {
+      assert.ok(rules(f, "").includes("secret-file-committed"), f);
+    }
+  });
+});
+
+describe("runs from any path (M1)", () => {
+  const script = new URL("./check-secrets.mjs", import.meta.url);
+
+  const repoWithLeak = (dirName) => {
+    const root = mkdtempSync(join(tmpdir(), "tb-scan-"));
+    const dir = join(root, dirName);
+    mkdirSync(join(dir, "scripts"), { recursive: true });
+    cpSync(script, join(dir, "scripts", "check-secrets.mjs"));
+    const git = (...args) => spawnSync("git", args, { cwd: dir, encoding: "utf8" });
+    git("init", "-q");
+    writeFileSync(join(dir, "leak.ts"), `const apiKey = "${rnd()}";\n`);
+    git("add", "leak.ts");
+    return { root, dir };
+  };
+
+  for (const dirName of ["no-space", "dir with space", "hash#and%percent", "ünïcode"]) {
+    it(`fails on a staged leak when the clone is in "${dirName}"`, () => {
+      const { root, dir } = repoWithLeak(dirName);
+      try {
+        const r = spawnSync(process.execPath, [join(dir, "scripts", "check-secrets.mjs"), "--staged"], { cwd: dir, encoding: "utf8" });
+        assert.equal(r.status, 1, `exit ${r.status}: ${r.stdout}${r.stderr}`);
+        assert.match(r.stderr, /leak\.ts:1\s+\[hard-coded-key-literal\]/);
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    });
+  }
+
+  it("fails on a staged leak when run through a symlink", () => {
+    const { root, dir } = repoWithLeak("real");
+    try {
+      const link = join(root, "link.mjs");
+      symlinkSync(join(dir, "scripts", "check-secrets.mjs"), link);
+      const r = spawnSync(process.execPath, [link, "--staged"], { cwd: dir, encoding: "utf8" });
+      assert.equal(r.status, 1, `exit ${r.status}: ${r.stdout}${r.stderr}`);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });
 

@@ -10,9 +10,18 @@ coverage/
 .env
 .env.*
 *.env
+*.env.*
+.envrc
 !.env.example
 !*.env.example
 !**/.env.example
+
+# Terraform variables and state hold secrets in plain text
+*.tfvars
+*.tfvars.json
+*.tfstate
+*.tfstate.*
+.terraform/
 
 # Keys, certificates and signing material
 *.pem

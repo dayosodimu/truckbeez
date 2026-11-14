@@ -1,0 +1,9 @@
+# Keeps SHA-pinned GitHub Actions up to date (BR-52 M5).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "ci(deps)"
