@@ -41,6 +41,14 @@ export function loadConfig(
   env: NodeJS.ProcessEnv = process.env,
   { readFile }: Pick<ReadSecretOptions, "readFile"> = {}
 ): Config {
+  // Fail closed (BR-52 M6): the runtime image sets NODE_ENV=production, so a container
+  // started without APP_ENV must not fall back to "development", which skips the
+  // placeholder checks, the DB/Redis requirement and (with routing) the HERE key.
+  if (env.NODE_ENV === "production" && (!env.APP_ENV || env.APP_ENV === "development")) {
+    throw new Error(
+      `APP_ENV must be set to staging, preprod or prod when NODE_ENV=production (got ${env.APP_ENV ? `"${env.APP_ENV}"` : "nothing"})`
+    );
+  }
   const appEnv = (env.APP_ENV ?? "development") as AppEnv;
   if (!VALID_ENVS.includes(appEnv)) {
     throw new Error(`Invalid APP_ENV "${env.APP_ENV}". Expected one of: ${VALID_ENVS.join(", ")}`);

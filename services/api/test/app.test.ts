@@ -38,6 +38,18 @@ describe("loadConfig", () => {
     REDIS_URL: fakeUrl("rediss"),
   });
 
+  it.each([undefined, "development"])(
+    "refuses to start when NODE_ENV=production and APP_ENV is %s (fail closed)",
+    (appEnv) => {
+      const env = { NODE_ENV: "production", ...(appEnv ? { APP_ENV: appEnv } : {}) };
+      expect(() => loadConfig(env)).toThrow(/APP_ENV must be set/);
+    }
+  );
+
+  it("still starts the production image for a deployed APP_ENV", () => {
+    expect(loadConfig({ NODE_ENV: "production", ...deployed("staging") }).appEnv).toBe("staging");
+  });
+
   it("rejects an unknown APP_ENV", () => {
     expect(() => loadConfig({ APP_ENV: "qa" })).toThrow(/Invalid APP_ENV/);
   });
@@ -117,5 +129,25 @@ describe("safeErrorHandler", () => {
     expect(JSON.stringify(res.body)).not.toContain(key);
     expect(logs.join("\n")).toContain("upstream failed");
     expect(logs.join("\n")).not.toContain(key);
+  });
+});
+
+describe("safeErrorHandler and request bodies", () => {
+  it("never logs a malformed JSON body (body-parser puts it in err.message)", async () => {
+    const config = loadConfig({ APP_ENV: "unit" });
+    const logs: string[] = [];
+    const app = express();
+    app.use(express.json());
+    app.post("/login", (_req, res) => {
+      res.json({ ok: true });
+    });
+    app.use(safeErrorHandler(config, (line) => logs.push(line)));
+
+    const body = `${fakeSecret()}-not-json`;
+    const res = await request(app).post("/login").set("Content-Type", "application/json").send(body);
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "Bad request." });
+    expect(logs.join("\n")).toContain("entity.parse.failed");
+    expect(logs.join("\n")).not.toContain(body.slice(0, 12));
   });
 });

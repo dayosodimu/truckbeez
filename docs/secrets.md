@@ -1,5 +1,7 @@
 # Secrets: API keys, passwords and tokens
 
+> **Scope:** the code-level guards (`Secret`, `redact()`, the config checks) cover `services/api`, the only API under ADR-0003. Code from PR #2/#3 (`apps/api`, `apps/server`) is not covered until it is ported into `services/api` (ADR-0003 steps A–D). The repo-level guards (scanner, gitleaks, `.gitignore`) cover every file.
+
 **Rule:** a secret lives in exactly one place, the environment's secret store. It never appears in the repo (not even as a mock), in the mobile app, in logs, or in an error response.
 
 ## Where each secret lives
@@ -20,6 +22,7 @@ The deploy workflow writes `ENV_FILE` to `deploy/env/<env>.env` on the host with
 
 - **Environment only:** every secret is read from `NAME`, or from a file named in `NAME_FILE` (Docker and Kubernetes secrets). Setting both is an error.
 - **Secrets redact themselves:** they are held as `Secret` objects that print as `[redacted:NAME]` through `console.log`, `JSON.stringify`, template strings and `util.inspect`. Only the code that sends the value calls `.reveal()`.
+- **No silent "development" in production:** the runtime image sets `NODE_ENV=production`, and the API **refuses to start** there unless `APP_ENV` is `staging`, `preprod` or `prod`. A missing `APP_ENV` never falls back to development (which would skip every check below).
 - **No placeholders when deployed:** in staging, preprod and prod the API **refuses to start** if a secret, or a URL's password, is still a placeholder (`<postgres-password>`, `change-me`, `your-key`, `xxxx`, …). Error messages name the variable, never the value.
 - **Stripe mode must match the key:** `STRIPE_MODE=live` is only allowed in prod and requires a `sk_live_`/`rk_live_` key. Everywhere else needs a test key.
 - **Safe errors:** clients get `{"error": "Something went wrong."}`. Server logs keep the detail with every known secret, URL credential, `?apiKey=`-style parameter and bearer token redacted.
@@ -40,16 +43,16 @@ const stripe = fakeStripeKey("test");       // sk_test_<random>
 const db = fakeUrl("postgres");             // postgres://app:<random>@db.internal:5432/truckbeez
 ```
 
-Mock keys can't then be confused with real ones, reused, or flagged by scanners. If a line genuinely needs a literal (for example a public test vector), end it with `// secrets-scan: allow (<reason>)`.
+Mock keys can't then be confused with real ones, reused, or flagged by scanners. If a line genuinely needs a literal (for example a public test vector), end it with `// secrets-scan: allow (<reason>)` (or `# secrets-scan: allow (<reason>)`). The marker only counts as the **last thing on the line** and **with a reason**; CI prints how many lines use it, and changes to the scanner need the owner's review (`.github/CODEOWNERS`).
 
 ## Automated guards
 
 | Guard | When | What it blocks |
 |---|---|---|
-| `.gitignore` | every `git add` | `.env`, `.env.*`, `*.env`, keys and certificates (`*.pem`, `*.p12`, `*.jks`, `*.keystore`), Google service-account JSON, Expo/EAS credentials |
-| `.githooks/pre-commit` | every commit | runs `scripts/check-secrets.mjs --staged`, plus `gitleaks protect` if installed |
-| `secret-scan` workflow | every PR, every push to `main`, weekly | scanner self-test, `check-secrets.mjs` on all tracked files, gitleaks across **the full git history** |
-| API config | every start in a deployed env | placeholders, a Stripe key in the wrong mode, missing DB/Redis |
+| `.gitignore` | every `git add` | `.env`, `.env.*`, `*.env`, `*.env.*` (e.g. `prod.env.bak`), `.envrc`, Terraform `*.tfvars` and state, keys and certificates (`*.pem`, `*.p12`, `*.jks`, `*.keystore`), Google service-account JSON, Expo/EAS credentials |
+| `.githooks/pre-commit` | every commit, **once enabled** (below); `git commit --no-verify` skips it, so CI is the real gate | runs `scripts/check-secrets.mjs --staged`, plus `gitleaks protect` if installed |
+| `secret-scan` workflow | every PR, every push to `main`, weekly | scanner self-test, `check-secrets.mjs` on all tracked files (any text file: code, Dockerfile, Terraform, `.properties`, docs), gitleaks across **the full git history**. Actions are SHA-pinned; gitleaks runs with no network, no token and a read-only checkout. Make it a **required status check** on `main`. |
+| API config | every start in a deployed env | a missing `APP_ENV` under `NODE_ENV=production`, placeholders, a Stripe key in the wrong mode, missing DB/Redis |
 
 Turn on the pre-commit hook once per clone:
 
