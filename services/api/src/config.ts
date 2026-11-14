@@ -22,7 +22,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   // Fail closed: the runtime image sets NODE_ENV=production, so a container started without
   // APP_ENV must not fall back to "development", where the straight-line demo route (which
   // ignores every truck and hazmat restriction) is allowed. Same rule as PR #11 (BR-52 M6).
-  if (env.NODE_ENV === "production" && (!env.APP_ENV || env.APP_ENV === "development")) {
+  if (env.NODE_ENV === "production" && !["staging", "preprod", "prod"].includes(env.APP_ENV ?? "")) {
     throw new Error(
       `APP_ENV must be set to staging, preprod or prod when NODE_ENV=production (got ${env.APP_ENV ? `"${env.APP_ENV}"` : "nothing"})`
     );
