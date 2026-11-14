@@ -131,6 +131,46 @@ describe("file types beyond JS and env files (M2)", () => {
     }
   });
 
+  it("does not flag ordinary code, references and documented patterns (re-review N2–N5)", () => {
+    for (const [f, line] of [
+      ["infra/db.tf", "password = random_password.db.result"],
+      ["infra/db.tf", "secret_string = data.aws_secretsmanager_secret_version.here.secret_string"],
+      ["infra/db.tf", "master_password = local.db_password"],
+      ["services/api/src/auth.ts", "this.password = await hash(input.password);"],
+      ["services/api/src/auth.ts", "if (secret == null) return;"],
+      ["services/api/src/auth.ts", "user.passwordHash = digest;"],
+      ["tools/x.py", 'token = os.environ["HERE_API_KEY"]'],
+      [".github/workflows/x.yml", "HERE_API_KEY=${{ secrets.HERE_API_KEY }}"],
+      ["services/api/src/here.ts", 'const base = process.env.HERE_BASE_URL ?? "https://router.hereapi.com";'],
+      ["deploy/env/prod.env.example", "STRIPE_SECRET_KEY_FILE=/run/secrets/stripe"],
+      ["docs/setup.md", "HERE_API_KEY=your-key"],
+      ["apps/mobile/src/session.ts", 'storageKey: "truckbeez.session.refresh"'],
+      ["services/api/src/oauth.ts", 'grantAuth: "authorization_code"'],
+    ]) {
+      assert.deepEqual(rules(f, line), [], `${f}: ${line}`);
+    }
+  });
+
+  it("flags the space-form Dockerfile ENV, unquoted YAML values and keys in URLs", () => {
+    assert.ok(rules("services/api/Dockerfile", `ENV HERE_API_KEY ${rnd()}`).includes("secret-assignment"));
+    assert.ok(rules("deploy/compose.prod.yaml", `      HERE_API_KEY: ${rnd()}`).includes("secret-assignment"));
+    assert.ok(rules("services/api/src/here.ts", `fetch("https://router.hereapi.com/v8/routes?apiKey=${rnd()}")`).includes("key-in-url"));
+    for (const [f, line] of [
+      ["deploy/compose.prod.yaml", "      HERE_API_KEY: ${HERE_API_KEY}"],
+      ["deploy/compose.prod.yaml", "      HERE_API_KEY_FILE: /run/secrets/here"],
+      ["services/api/Dockerfile", "ARG NPM_TOKEN"],
+      ["docs/x.md", "`?apiKey=<your-key>`"],
+      ["services/api/src/here.ts", "url.searchParams.set(\"apiKey\", key.reveal());"],
+    ]) {
+      assert.deepEqual(rules(f, line), [], `${f}: ${line}`);
+    }
+  });
+
+  it("still flags a URL fallback that carries a password", () => {
+    const line = `const db = process.env.DATABASE_URL ?? "postgres://app:${rnd(16)}@db:5432/x";`; // secrets-scan: allow (scanner test input, value generated at runtime)
+    assert.ok(rules("services/api/src/db.ts", line).includes("hard-coded-env-fallback"));
+  });
+
   it("forbids committing any env-like or Terraform state file", () => {
     for (const f of ["deploy/env/prod.env.bak", "deploy/env/prod.env.local", ".envrc", "infra/prod.tfvars", "infra/terraform.tfstate"]) {
       assert.ok(rules(f, "").includes("secret-file-committed"), f);

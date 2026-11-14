@@ -38,7 +38,7 @@ describe("loadConfig", () => {
     REDIS_URL: fakeUrl("rediss"),
   });
 
-  it.each([undefined, "development"])(
+  it.each([undefined, "", "development", "unit"])(
     "refuses to start when NODE_ENV=production and APP_ENV is %s (fail closed)",
     (appEnv) => {
       const env = { NODE_ENV: "production", ...(appEnv ? { APP_ENV: appEnv } : {}) };

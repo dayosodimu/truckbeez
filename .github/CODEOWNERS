@@ -6,3 +6,8 @@
 /.github/workflows/secret-scan.yml       @dayosodimu
 /.github/CODEOWNERS                      @dayosodimu
 /services/api/src/secrets.ts             @dayosodimu
+/services/api/src/config.ts              @dayosodimu
+/services/api/src/app.ts                 @dayosodimu
+/.gitignore                              @dayosodimu
+/.github/dependabot.yml                  @dayosodimu
+/docs/secrets.md                         @dayosodimu
