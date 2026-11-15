@@ -9,7 +9,11 @@ import { decodeFlexiblePolyline } from "./flexiblePolyline.js";
 
 export const HERE_ROUTES_URL = "https://router.hereapi.com/v8/routes";
 
-/** Every value HERE Routing v8 accepts for `vehicle[shippedHazardousGoods]`. */
+/**
+ * Every value HERE Routing v8 accepts for `vehicle[shippedHazardousGoods]`.
+ * The driver app must offer exactly these (apps/mobile/src/hazmat.ts, BR-58);
+ * test/hazmat-options.test.ts fails if they differ.
+ */
 export const HERE_HAZARDOUS_GOODS = [
   "combustible",
   "corrosive",

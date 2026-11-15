@@ -8,7 +8,8 @@ export type TruckProfile = {
   axleCount: number;
   /**
    * HERE `shippedHazardousGoods` categories, e.g. "flammable", "explosive", "gas", "corrosive".
-   * Validated against HERE_HAZARDOUS_GOODS in routes/route.ts.
+   * Validated against HERE_HAZARDOUS_GOODS in routes/route.ts. The driver app offers the same
+   * list (apps/mobile/src/hazmat.ts); test/hazmat-options.test.ts keeps them in step.
    */
   hazmat: string[];
   /** ADR tunnel restriction code for the load; routes only use less strict tunnels. */
