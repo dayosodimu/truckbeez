@@ -2,13 +2,12 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import type { RootStack } from "../../App";
+import { HAZMAT_OPTIONS, type HazmatCategory } from "../hazmat";
 import { useTruckProfile } from "../state/TruckProfileContext";
 import { colors, TAP, type } from "../theme";
 import type { TruckProfile } from "../types";
 
 type Props = NativeStackScreenProps<RootStack, "Profile">;
-
-const HAZMAT = ["flammable", "explosive", "gas", "corrosive", "poison", "radioactive"];
 
 const FIELDS: { key: keyof Omit<TruckProfile, "hazmat">; label: string; unit: string }[] = [
   { key: "heightCm", label: "Height", unit: "cm" },
@@ -23,7 +22,7 @@ export function ProfileScreen({ navigation }: Props) {
   const { profile, setProfile } = useTruckProfile();
   const [draft, setDraft] = useState(profile);
 
-  const toggleHazmat = (h: string) =>
+  const toggleHazmat = (h: HazmatCategory) =>
     setDraft((d) => ({
       ...d,
       hazmat: d.hazmat.includes(h) ? d.hazmat.filter((x) => x !== h) : [...d.hazmat, h],
@@ -52,13 +51,14 @@ export function ProfileScreen({ navigation }: Props) {
       ))}
 
       <Text style={[type.title, styles.section]}>Hazardous load</Text>
-      {HAZMAT.map((h) => (
-        <View key={h} style={styles.row}>
-          <Text style={type.body}>{h[0].toUpperCase() + h.slice(1)}</Text>
+      {HAZMAT_OPTIONS.map(({ value, label }) => (
+        <View key={value} style={styles.row}>
+          <Text style={[type.body, styles.hazmatLabel]}>{label}</Text>
           <Switch
-            value={draft.hazmat.includes(h)}
-            onValueChange={() => toggleHazmat(h)}
+            value={draft.hazmat.includes(value)}
+            onValueChange={() => toggleHazmat(value)}
             trackColor={{ true: colors.amberStrong, false: colors.lane }}
+            accessibilityLabel={label}
           />
         </View>
       ))}
@@ -90,6 +90,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.lane,
   },
+  hazmatLabel: { flexShrink: 1, paddingRight: 12 },
   inputWrap: { flexDirection: "row", alignItems: "center", gap: 8 },
   input: {
     minWidth: 110,

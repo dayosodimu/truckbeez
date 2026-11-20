@@ -1,0 +1,4 @@
+{
+  "$comment": "Verified real-world restrictions for the live @routing-safety suite. Add a case only after checking it against an official source (state DOT clearance list, posted signage, FMCSA/state hazmat route listing, or a PC*Miler HazMat route), and record that source. Fields: name, source, origin {lat,lng}, destination {lat,lng}, profile (TruckProfile: heightCm, widthCm, lengthCm, grossWeightKg, axleCount, hazmat[], tunnelCategory?), restriction {lat,lng,radiusM}, expect ('avoid' | 'no_route'). The suite fails while this list is empty and HERE_API_KEY is set.",
+  "cases": []
+}
