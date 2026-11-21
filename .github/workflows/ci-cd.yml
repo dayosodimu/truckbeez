@@ -32,7 +32,7 @@ jobs:
     timeout-minutes: 15
     steps:
       # TODO: pin first-party actions by SHA too once the repo's pinning policy is set.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Run unit tests in the test container
         run: |
@@ -58,7 +58,7 @@ jobs:
     outputs:
       image: ${{ steps.publish.outputs.image }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build runtime image
         run: |
