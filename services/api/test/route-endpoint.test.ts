@@ -147,6 +147,24 @@ describe("POST /api/route", () => {
     ]);
   });
 
+  it("@routing-safety BR-59: a declared 2.2 load is not told about an inhalation assumption", async () => {
+    const res = await request(appWithHere(compliantRoute()))
+      .post("/api/route")
+      .send(routeRequest({ ...DRY_VAN, hazmatClasses: [2], hazmatDivisions: ["2.2"] }));
+    expect(res.status).toBe(200);
+    expect(res.body.safetyAssumptions).toEqual([]);
+  });
+
+  it("@routing-safety BR-59: a division without its class is a 400 and HERE is never called", async () => {
+    const fetchFn = vi.fn();
+    const res = await request(appWithFetch(fetchFn as unknown as typeof fetch))
+      .post("/api/route")
+      .send(routeRequest({ ...DRY_VAN, hazmatClasses: [3], hazmatDivisions: ["2.1"] }));
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("INVALID_REQUEST");
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
   it("@routing-safety keeps the inhalation assumption on a 422 so the driver knows why", async () => {
     const notice = { title: "Violated avoid tunnel.", code: "violatedAvoidTunnel", severity: "critical" };
     const res = await request(appWithHere(violatingRoute(notice)))
