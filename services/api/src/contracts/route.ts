@@ -34,6 +34,15 @@ export const hazmatClassSchema = z
   .max(9)
   .transform((n) => n as HazmatClass);
 
+/**
+ * UN divisions the server can use to refine classes 2 and 6 (BR-59, ADR-0003 S1/S2).
+ * Other divisions (1.x, 4.x, 5.x) don't change the HERE categories, so they aren't accepted:
+ * an unexpected value is a 400, never silently ignored.
+ */
+export const HAZMAT_DIVISIONS = ["2.1", "2.2", "2.3", "6.1", "6.2"] as const;
+export const hazmatDivisionSchema = z.enum(HAZMAT_DIVISIONS);
+export type HazmatDivision = z.infer<typeof hazmatDivisionSchema>;
+
 /** ADR tunnel restriction code. B is the most restrictive, E the least. */
 export const TUNNEL_CATEGORIES = ["B", "C", "D", "E"] as const;
 export const tunnelCategorySchema = z.enum(TUNNEL_CATEGORIES);
@@ -58,8 +67,50 @@ export const truckProfileSchema = z
         message: "Hazmat classes must not repeat",
       }),
     tunnelCategory: tunnelCategorySchema.optional(),
+    /**
+     * Optional (BR-59). Omit when unknown: classes 2 and 6 are then routed as inhalation
+     * hazards and the response says so. Each division's class must be in `hazmatClasses`.
+     */
+    hazmatDivisions: z
+      .array(hazmatDivisionSchema)
+      .max(HAZMAT_DIVISIONS.length)
+      .refine((divisions) => new Set(divisions).size === divisions.length, {
+        message: "Hazmat divisions must not repeat",
+      })
+      .optional(),
+    /**
+     * Optional (BR-59): the shipping papers say "Inhalation Hazard" (PIH/TIH, 49 CFR 171.8).
+     * `true` always sends HERE's poisonousInhalation; `false` only drops it for a declared 6.1.
+     */
+    inhalationHazard: z.boolean().optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((truck, ctx) => {
+    for (const division of truck.hazmatDivisions ?? []) {
+      if (!truck.hazmatClasses.includes(Number(division.split(".")[0]) as HazmatClass)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["hazmatDivisions"],
+          message: `Division ${division} needs its class in hazmatClasses`,
+        });
+      }
+    }
+    if (truck.inhalationHazard !== undefined && truck.hazmatClasses.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["inhalationHazard"],
+        message: "inhalationHazard needs at least one hazmat class",
+      });
+    }
+    if (truck.inhalationHazard === false && truck.hazmatDivisions?.includes("2.3")) {
+      // 2.3 is a toxic-by-inhalation gas by definition: the profile contradicts itself.
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["inhalationHazard"],
+        message: "Division 2.3 is always an inhalation hazard",
+      });
+    }
+  });
 
 export type TruckProfile = z.infer<typeof truckProfileSchema>;
 
@@ -134,5 +185,5 @@ export const MESSAGES = {
   routingProviderError: "Couldn't reach the routing service. Try again.",
   demoRouteSuffix: "(demo route)",
   hazmatInhalationAssumed:
-    "Your gas or toxic load is routed as an inhalation hazard because your truck profile doesn't record the hazmat division yet. Some roads and tunnels may be avoided.",
+    "Your gas or toxic load is routed as an inhalation hazard because your truck profile doesn't say its hazmat division or whether it's an inhalation hazard. Some roads and tunnels may be avoided.",
 } as const;
