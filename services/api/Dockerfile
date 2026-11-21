@@ -22,12 +22,12 @@ RUN --mount=type=cache,target=/root/.npm \
 FROM deps AS test
 ENV APP_ENV=unit \
     CI=true
-COPY tsconfig*.json vitest.config.ts ./
+COPY tsconfig*.json vitest.config.ts eslint.config.js ./
 COPY src ./src
 COPY test ./test
-# Default command runs the unit suite; JUnit report is written to /app/reports
-# so CI can mount it out with -v.
-CMD ["sh", "-c", "npm run typecheck && npm run test:unit"]
+# Default command: typecheck, lint, then the unit suite. JUnit report is written to
+# /app/reports so CI can mount it out with -v. CI runs each gate as its own step.
+CMD ["sh", "-c", "npm run typecheck && npm run lint && npm run test:unit"]
 
 # ---------- build: compile TypeScript ----------
 FROM deps AS build
