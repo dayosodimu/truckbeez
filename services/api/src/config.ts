@@ -71,6 +71,11 @@ export function loadConfig(
   if (deployed) {
     if (!secrets.databaseUrl) throw new Error(`DATABASE_URL is required when APP_ENV=${appEnv}`);
     if (!secrets.redisUrl) throw new Error(`REDIS_URL is required when APP_ENV=${appEnv}`);
+    // The demo route ignores every truck and hazmat restriction, so deployed environments
+    // must route with HERE (BR-53, non-negotiable #2). A blank value counts as missing.
+    if (!secrets.hereApiKey?.reveal().trim()) {
+      throw new Error(`HERE_API_KEY is required when APP_ENV=${appEnv}: the demo route is not truck-safe`);
+    }
   }
 
   const stripeMode = env.STRIPE_MODE === "live" ? "live" : "test";

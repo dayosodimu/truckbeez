@@ -36,6 +36,7 @@ describe("loadConfig", () => {
     APP_ENV: appEnv,
     DATABASE_URL: fakeUrl("postgres"),
     REDIS_URL: fakeUrl("rediss"),
+    HERE_API_KEY: fakeSecret(),
   });
 
   it.each([undefined, "", "development", "unit"])(
@@ -57,6 +58,17 @@ describe("loadConfig", () => {
   it.each(["staging", "preprod", "prod"])("requires data stores when APP_ENV=%s", (appEnv) => {
     expect(() => loadConfig({ APP_ENV: appEnv })).toThrow(/DATABASE_URL is required/);
     expect(() => loadConfig({ APP_ENV: appEnv, DATABASE_URL: fakeUrl("postgres") })).toThrow(/REDIS_URL is required/);
+  });
+
+  it.each(["staging", "preprod", "prod"])("@routing-safety requires HERE_API_KEY when APP_ENV=%s", (appEnv) => {
+    const { HERE_API_KEY: _unused, ...stores } = deployed(appEnv);
+    expect(() => loadConfig(stores)).toThrow(/HERE_API_KEY is required/);
+    expect(() => loadConfig({ ...stores, HERE_API_KEY: "  " })).toThrow(/HERE_API_KEY is required/);
+  });
+
+  it("does not require HERE_API_KEY in development or unit", () => {
+    expect(loadConfig({ APP_ENV: "development" }).secrets.hereApiKey).toBeUndefined();
+    expect(loadConfig({ APP_ENV: "unit" }).secrets.hereApiKey).toBeUndefined();
   });
 
   it("accepts a fully configured prod environment", () => {
