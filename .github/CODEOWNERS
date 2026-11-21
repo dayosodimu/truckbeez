@@ -1,0 +1,13 @@
+# Changes to the secret guards need the owner's review (BR-52 M4).
+# Takes effect once branch protection on main requires code-owner review.
+/scripts/check-secrets*                  @dayosodimu
+/.gitleaks.toml                          @dayosodimu
+/.githooks/                              @dayosodimu
+/.github/workflows/secret-scan.yml       @dayosodimu
+/.github/CODEOWNERS                      @dayosodimu
+/services/api/src/secrets.ts             @dayosodimu
+/services/api/src/config.ts              @dayosodimu
+/services/api/src/app.ts                 @dayosodimu
+/.gitignore                              @dayosodimu
+/.github/dependabot.yml                  @dayosodimu
+/docs/secrets.md                         @dayosodimu
