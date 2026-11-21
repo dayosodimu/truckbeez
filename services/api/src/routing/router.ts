@@ -7,6 +7,7 @@ import {
   type RouteResponse,
 } from "../contracts/route.js";
 import { hazmatSafetyAssumptions } from "./hazmat.js";
+import { redact, type Secret } from "../secrets.js";
 import { RoutingProviderError, type RoutingProvider } from "./types.js";
 
 export type RouteLogger = Pick<Console, "warn" | "error">;
@@ -17,7 +18,12 @@ export const sendError = (res: Response, status: number, code: ApiErrorCode, mes
 };
 
 /** `POST /api/route`: UC-03 plan a truck-safe route, UC-04 no truck-safe route available. */
-export function createRouteRouter(provider: RoutingProvider, logger: RouteLogger = console): Router {
+export function createRouteRouter(
+  provider: RoutingProvider,
+  logger: RouteLogger = console,
+  /** Redacted from every log line as defence in depth (PR #15 review F4). */
+  secrets: readonly (Secret | undefined)[] = []
+): Router {
   const router = Router();
 
   router.post("/", async (req, res) => {
@@ -41,7 +47,7 @@ export function createRouteRouter(provider: RoutingProvider, logger: RouteLogger
     } catch (error) {
       if (error instanceof RoutingProviderError) {
         // Provider error messages never contain the key or the HERE response body.
-        logger.warn(JSON.stringify({ msg: "routing provider error", provider: provider.name, detail: error.message }));
+        logger.warn(JSON.stringify({ msg: "routing provider error", provider: provider.name, detail: redact(error.message, secrets) }));
         sendError(res, 502, "ROUTING_PROVIDER_ERROR", MESSAGES.routingProviderError);
         return;
       }

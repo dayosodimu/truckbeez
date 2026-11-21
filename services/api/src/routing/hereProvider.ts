@@ -157,6 +157,8 @@ export function createHereProvider({
       try {
         response = await fetchFn(buildHereRouteUrl(request, apiKey.reveal()), {
           headers: { Accept: "application/json" },
+          // The key is in the URL, so a redirect would hand it to the new host (PR #15 review F5).
+          redirect: "error",
           signal: AbortSignal.timeout(timeoutMs),
         });
       } catch (error) {

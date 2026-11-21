@@ -27,7 +27,7 @@ export function createApp(config: Config, deps: AppDeps = {}): Express {
   });
 
   // Truck-safe routing (UC-03 / UC-04, ADR-0001).
-  app.use("/api/route", createRouteRouter(routingProvider, deps.logger));
+  app.use("/api/route", createRouteRouter(routingProvider, deps.logger, Object.values(config.secrets)));
 
   app.use((_req, res) => {
     res.status(404).json({ error: "Not found" });

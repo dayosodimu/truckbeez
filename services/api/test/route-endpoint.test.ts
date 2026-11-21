@@ -13,6 +13,7 @@ import {
   routeRequest,
   violatingRoute,
 } from "./helpers/here.js";
+import { fakeSecret } from "./helpers/fakeSecrets.js";
 
 const config = loadConfig({ APP_ENV: "unit", APP_VERSION: "test-sha" });
 const quietLogger = () => ({ warn: vi.fn(), error: vi.fn() });
@@ -23,11 +24,38 @@ const appWithHere = (body: unknown, logger = quietLogger()) =>
     logger,
   });
 
+const appWithFetch = (fetchFn: typeof fetch) =>
+  createApp(config, { routingProvider: createHereProvider({ apiKey: fakeHereKey(), fetchFn }), logger: quietLogger() });
+
 const failingProvider = (error: Error): RoutingProvider => ({
   name: "here",
   route: async () => {
     throw error;
   },
+});
+
+describe("HERE key protection (PR #15 review F4, F5)", () => {
+  it("@routing-safety refuses redirects, so the key in the URL never reaches another host", async () => {
+    const fetchFn = vi.fn(fetchReturning(jsonResponse(compliantRoute())));
+    await request(appWithFetch(fetchFn as unknown as typeof fetch)).post("/api/route").send(routeRequest());
+    expect(fetchFn).toHaveBeenCalledOnce();
+    expect(fetchFn.mock.calls[0][1]).toMatchObject({ redirect: "error" });
+  });
+
+  it("redacts the configured HERE key from provider-error log lines", async () => {
+    const key = fakeSecret();
+    const keyedConfig = loadConfig({ APP_ENV: "unit", HERE_API_KEY: key });
+    const logger = quietLogger();
+    const app = createApp(keyedConfig, {
+      routingProvider: failingProvider(new RoutingProviderError(`upstream said ?apiKey=${key} and ${key}`)),
+      logger,
+    });
+    const res = await request(app).post("/api/route").send(routeRequest());
+    expect(res.status).toBe(502);
+    const logged = JSON.stringify(logger.warn.mock.calls);
+    expect(logged).toContain("routing provider error");
+    expect(logged).not.toContain(key);
+  });
 });
 
 describe("POST /api/route", () => {
