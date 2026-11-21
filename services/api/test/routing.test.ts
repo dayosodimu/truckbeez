@@ -285,11 +285,11 @@ describe("HERE provider", () => {
 
 describe("createRoutingProvider", () => {
   it("uses HERE when a key is configured", () => {
-    expect(createRoutingProvider({ appEnv: "prod", hereApiKey: fakeHereKey() }).name).toBe("here");
+    expect(createRoutingProvider({ appEnv: "prod", secrets: { hereApiKey: fakeHereKey() } }).name).toBe("here");
   });
 
   it("uses the labelled demo route in development without a key", async () => {
-    const provider = createRoutingProvider({ appEnv: "development" });
+    const provider = createRoutingProvider({ appEnv: "development", secrets: {} });
     expect(provider.name).toBe("demo");
     const result = await provider.route(routeRequest());
     expect(result.kind === "ok" && result.route.isDemo).toBe(true);
@@ -298,7 +298,7 @@ describe("createRoutingProvider", () => {
   it.each(["staging", "preprod", "prod"] as const)(
     "@routing-safety refuses the straight-line demo route when APP_ENV=%s",
     (appEnv) => {
-      expect(() => createRoutingProvider({ appEnv })).toThrow(/HERE_API_KEY is required/);
+      expect(() => createRoutingProvider({ appEnv, secrets: {} })).toThrow(/HERE_API_KEY is required/);
     }
   );
 

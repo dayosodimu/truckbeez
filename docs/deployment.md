@@ -87,3 +87,7 @@ curl localhost:8080/version
 - Move env secrets from GitHub environment secrets to a cloud secrets manager with OIDC
   (`truckbeez-security-engineer` / `truckbeez-devops-specialist`), and wire Terraform for hosts and managed data stores.
 - Add `routing-service`, `tracking-gateway` and `workers` images using the same Dockerfile pattern.
+
+## Secrets
+
+Secrets are injected per environment from the GitHub environment secret `ENV_FILE` and are never baked into the image. Deployed environments refuse placeholder values. See [`docs/secrets.md`](secrets.md) for the inventory, the guards and what to do if a key leaks.

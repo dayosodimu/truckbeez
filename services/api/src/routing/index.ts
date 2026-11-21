@@ -1,7 +1,7 @@
 import type { Config } from "../config.js";
 import { createDemoProvider } from "./demoProvider.js";
 import { createHereProvider, type HereProviderOptions } from "./hereProvider.js";
-import type { RoutingProvider } from "./types.js";
+import type { RevealableSecret, RoutingProvider } from "./types.js";
 
 export * from "./types.js";
 
@@ -9,11 +9,11 @@ export * from "./types.js";
 const DEMO_ROUTING_ENVS: ReadonlyArray<Config["appEnv"]> = ["development", "unit"];
 
 export function createRoutingProvider(
-  config: Pick<Config, "appEnv" | "hereApiKey">,
+  config: { appEnv: Config["appEnv"]; secrets: { hereApiKey?: RevealableSecret } },
   hereOptions: Omit<HereProviderOptions, "apiKey"> = {}
 ): RoutingProvider {
-  if (config.hereApiKey) {
-    return createHereProvider({ ...hereOptions, apiKey: config.hereApiKey });
+  if (config.secrets.hereApiKey) {
+    return createHereProvider({ ...hereOptions, apiKey: config.secrets.hereApiKey });
   }
   if (!DEMO_ROUTING_ENVS.includes(config.appEnv)) {
     // loadConfig already refuses this; kept here so no caller can build a demo router in a deployed env.
