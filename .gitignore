@@ -47,3 +47,7 @@ secrets/
 .secrets/
 .npmrc
 !/.npmrc.example
+
+# Expo
+.expo/
+web-build/

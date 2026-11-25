@@ -69,7 +69,7 @@ jobs:
   # Workspace packages other than the API (packages/shared now, apps/mobile from step E):
   # one lockfile, installed with scripts off, then typecheck + tests (ADR-0003 step B).
   workspaces:
-    name: Workspaces (shared contracts)
+    name: Workspaces (shared contracts, mobile app)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -88,6 +88,9 @@ jobs:
         run: npm run typecheck --workspaces --if-present
       - name: Test @truckbeez/shared
         run: npm test -w @truckbeez/shared
+      # Driver app (ADR-0003 step E): Jest with the jest-expo preset, React Native Testing Library.
+      - name: Test @truckbeez/mobile
+        run: npm test -w @truckbeez/mobile
 
   build-image:
     name: Build, scan and publish image

@@ -16,8 +16,11 @@ ARG NODE_IMAGE=node:22-alpine
 
 # ---------- manifests: only what npm needs to resolve the workspace tree ----------
 # Each workspace's package.json is copied explicitly (never a glob: a glob that
-# matches nothing fails the build), never their sources, so installs stay
-# predictable as workspaces are added. Add apps/mobile/package.json in step E.
+# matches nothing fails the build), never their sources.
+# apps/mobile/package.json is deliberately NOT copied (step E): with it present,
+# npm ci's --workspace filter keeps packages hoisted for the app (typescript,
+# terser, lightningcss, …) in the API's production install. Without it, npm ci
+# still checks the lockfile and installs only what the API and shared need.
 FROM ${NODE_IMAGE} AS manifests
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -60,6 +63,10 @@ FROM manifests AS prod-deps
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --omit=dev --ignore-scripts --no-audit --no-fund \
       --workspace @truckbeez/api --workspace @truckbeez/shared
+# Guard: build tooling and app-only packages never reach the runtime image.
+RUN for pkg in typescript vitest eslint tsx terser lightningcss react react-native expo; do \
+      if [ -e "node_modules/$pkg" ]; then echo "prod-deps: unexpected $pkg in the API production install" >&2; exit 1; fi; \
+    done
 
 # ---------- runtime: minimal, non-root, production image ----------
 FROM ${NODE_IMAGE} AS runtime
