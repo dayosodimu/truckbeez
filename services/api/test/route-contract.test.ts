@@ -5,7 +5,7 @@
  * This file pins the CONTRACT the mobile app depends on: what a valid truck profile is at
  * its boundaries, the exact success body shape, and the error envelope on every failure.
  * There is no separate truck-profile endpoint yet: the profile travels with every route
- * request (contracts/route.ts), so its validation is tested through this endpoint.
+ * request (@truckbeez/shared route contract), so its validation is tested through this endpoint.
  *
  * Traceability: UC-03 (plan a truck-safe route), UC-04 (no truck-safe route), ADR-0003.
  * Known bugs are pinned with `it.fails` so they turn red the moment they are fixed and the
@@ -15,7 +15,7 @@ import request from "supertest";
 import { describe, expect, it, vi } from "vitest";
 import { createApp } from "../src/app.js";
 import { loadConfig } from "../src/config.js";
-import { TUNNEL_CATEGORIES, type TruckProfile } from "../src/contracts/route.js";
+import { TUNNEL_CATEGORIES, type TruckProfile } from "@truckbeez/shared";
 import { createHereProvider } from "../src/routing/hereProvider.js";
 import { compliantRoute, DRY_VAN, fakeHereKey, jsonResponse, NEWARK, PHILADELPHIA, routeRequest } from "./helpers/here.js";
 
@@ -34,7 +34,7 @@ function appWithHere(body: unknown = compliantRoute()) {
 
 const post = (body: unknown, here = appWithHere()) => request(here.app).post("/api/route").send(body as object);
 
-/** The error envelope every failure must use (contracts/route.ts ApiError). */
+/** The error envelope every failure must use (@truckbeez/shared ApiError). */
 function expectErrorEnvelope(body: unknown, code: string) {
   expect(body).toEqual({
     error: expect.objectContaining({ code, message: expect.any(String) }),

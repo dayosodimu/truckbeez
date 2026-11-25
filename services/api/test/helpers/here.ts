@@ -1,4 +1,4 @@
-import type { LatLng, RouteRequest, TruckProfile } from "../../src/contracts/route.js";
+import type { LatLng, RouteRequest, TruckProfile } from "@truckbeez/shared";
 import type { HereNotice, HereRoutesResponse } from "../../src/routing/hereProvider.js";
 import type { RevealableSecret } from "../../src/routing/types.js";
 import { fakeSecret } from "./fakeSecrets.js";

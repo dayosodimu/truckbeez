@@ -12,11 +12,13 @@ name: truckbeez-unit
 services:
   api-unit:
     build:
-      context: ../services/api
+      # Repo root: the API depends on the @truckbeez/shared workspace (ADR-0003 step B).
+      context: ..
+      dockerfile: services/api/Dockerfile
       target: test
     image: truckbeez-api:unit
     environment:
       APP_ENV: unit
     network_mode: none
     volumes:
-      - ../reports/api:/app/reports
+      - ../reports/api:/app/services/api/reports
