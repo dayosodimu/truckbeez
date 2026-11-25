@@ -15,8 +15,9 @@
 ARG NODE_IMAGE=node:22-alpine
 
 # ---------- manifests: only what npm needs to resolve the workspace tree ----------
-# npm ci checks every workspace listed in the lockfile, so each workspace's
-# package.json is copied (apps/* included once they exist), never their sources.
+# Each workspace's package.json is copied explicitly (never a glob: a glob that
+# matches nothing fails the build), never their sources, so installs stay
+# predictable as workspaces are added. Add apps/mobile/package.json in step E.
 FROM ${NODE_IMAGE} AS manifests
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -80,11 +81,12 @@ RUN apk add --no-cache tini \
            /opt/yarn* /usr/local/bin/yarn /usr/local/bin/yarnpkg
 WORKDIR /app
 # Workspace layout is kept so node_modules/@truckbeez/shared (a symlink) resolves.
-COPY --from=prod-deps --chown=node:node /app/node_modules ./node_modules
-COPY --from=deps --chown=node:node /app/packages/shared/package.json ./packages/shared/
-COPY --from=deps --chown=node:node /app/packages/shared/dist ./packages/shared/dist
-COPY --from=build --chown=node:node /app/services/api/dist ./services/api/dist
-COPY --chown=node:node services/api/package.json ./services/api/
+# Files stay root-owned: the non-root `node` user can read but never rewrite its code.
+COPY --from=prod-deps /app/node_modules ./node_modules
+COPY --from=deps /app/packages/shared/package.json ./packages/shared/
+COPY --from=deps /app/packages/shared/dist ./packages/shared/dist
+COPY --from=build /app/services/api/dist ./services/api/dist
+COPY services/api/package.json ./services/api/
 WORKDIR /app/services/api
 USER node
 EXPOSE 3000

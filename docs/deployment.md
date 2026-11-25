@@ -33,7 +33,7 @@ environment. Environments differ only in configuration and secrets.
 
 | Path | Purpose |
 |---|---|
-| `services/api/Dockerfile` | Multi-stage: `deps` → `test` (unit container) → `build` → `runtime` (non-root, tini, healthcheck) |
+| `services/api/Dockerfile` | Multi-stage, repo-root context: `manifests` → `deps` (npm ci + build `@truckbeez/shared`) → `test` (unit container) / `build` → `prod-deps` (production-only npm ci) → `runtime` (non-root, root-owned read-only files, tini, healthcheck) |
 | `deploy/compose.unit.yaml` | Unit-test container, no network, JUnit to `reports/api/` |
 | `deploy/compose.base.yaml` | Shared API + nginx edge definition for deployed environments (read-only FS, dropped caps) |
 | `deploy/compose.data.yaml` | Postgres/PostGIS + Redis containers (staging & preprod only) |

@@ -19,7 +19,6 @@ CLAUDE.md
 **/.env.*
 **/*.env
 **/*.env.*
-!**/*.env.example
 **/*.tfvars
 **/*.tfstate*
 
