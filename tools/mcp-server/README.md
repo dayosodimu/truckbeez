@@ -13,7 +13,7 @@ python tests/test_server.py         # end-to-end test against a fake API, no int
 The repo-root `.mcp.json` registers the server with Claude Code. Export these in the shell you start Claude from:
 
 ```bash
-export HERE_API_KEY="..."                                   # optional: enables live routing
+export HERE_API_KEY="<here-api-key>"                                   # optional: enables live routing
 export TRUCKBEEZ_ENVS='{"staging":"https://staging.example.com","preprod":"https://preprod.example.com","production":"https://api.example.com"}'
 ```
 
