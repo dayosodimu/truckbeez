@@ -67,12 +67,29 @@ describe('TruckProfileScreen (BR-29 02a)', () => {
     expect(screen.getByTestId('truckProfile.height.in').props.value).toBe('6');
   });
 
-  it('AC-4: metric shows cm and kg inputs', () => {
+  it('AC-4: switching to metric shows 412 cm and 36,288 kg for 13 ft 6 in and 80,000 lb; back to ft keeps what was typed', () => {
+    const onSave = jest.fn();
+    render(<TruckProfileScreen onSave={onSave} onBack={jest.fn()} />);
+    fillVan();
+    fireEvent.press(screen.getByTestId('truckProfile.units.metric'));
+    expect(screen.queryByTestId('truckProfile.height.ft')).toBeNull();
+    expect(screen.getByTestId('truckProfile.height.cm').props.value).toBe('412');
+    expect(screen.getByTestId('truckProfile.width.cm').props.value).toBe('260');
+    expect(screen.getByTestId('truckProfile.weight.kg').props.value).toBe('36288');
+    fireEvent.press(screen.getByTestId('truckProfile.units.imperial'));
+    expect(screen.getByTestId('truckProfile.height.ft').props.value).toBe('13');
+    expect(screen.getByTestId('truckProfile.height.in').props.value).toBe('6');
+    fireEvent.press(screen.getByTestId('truckProfile.save'));
+    expect(onSave.mock.calls[0][1].heightM).toBe(4.12); // stored value unchanged by switching
+  });
+
+  it('@routing-safety metric to imperial fills empty fields rounded UP (411 cm -> 13 ft 6 in, not 13 ft 5 in)', () => {
     render(<TruckProfileScreen onSave={jest.fn()} onBack={jest.fn()} />);
     fireEvent.press(screen.getByTestId('truckProfile.units.metric'));
-    expect(screen.getByTestId('truckProfile.height.cm')).toBeTruthy();
-    expect(screen.getByTestId('truckProfile.weight.kg')).toBeTruthy();
-    expect(screen.queryByTestId('truckProfile.height.ft')).toBeNull();
+    fireEvent.changeText(screen.getByTestId('truckProfile.height.cm'), '411');
+    fireEvent.press(screen.getByTestId('truckProfile.units.imperial'));
+    expect(screen.getByTestId('truckProfile.height.ft').props.value).toBe('13');
+    expect(screen.getByTestId('truckProfile.height.in').props.value).toBe('6'); // 161.8 in -> 162
   });
 
   it('AC-9 + AC-14 + A11Y-3: hazmat classes are checkboxes, tunnel options are radios shown only with hazmat, default Not sure → B', () => {

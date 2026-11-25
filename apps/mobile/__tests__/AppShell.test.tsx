@@ -52,6 +52,58 @@ async function planTrip() {
   await act(async () => fireEvent.press(screen.getByTestId('route.submit')));
 }
 
+describe('@routing-safety stale answers never win (QA review of PR #32)', () => {
+  it('a late route for the OLD truck is ignored after the driver saves new details', async () => {
+    let resolveOld!: (r: PlanRouteResult) => void;
+    const calls: RouteRequest[] = [];
+    const planRoute = jest.fn(async (r: RouteRequest) => {
+      calls.push(r);
+      if (calls.length === 1) return { kind: 'offline' } as PlanRouteResult; // first try: no connection
+      if (calls.length === 2) return new Promise<PlanRouteResult>((res) => (resolveOld = res)); // retry hangs
+      return NO_SAFE; // new truck: no safe route
+    });
+    render(
+      <TruckProfileProvider initial={initialProfile()}>
+        <AppShell planRoute={planRoute} />
+      </TruckProfileProvider>
+    );
+    await planTrip();
+    await act(async () => fireEvent.press(screen.getByTestId('routeError.action.retry'))); // old-truck request in flight
+    fireEvent.press(screen.getByTestId('map.profileChip'));
+    fireEvent.changeText(screen.getByTestId('truckProfile.height.ft'), '14');
+    fireEvent.changeText(screen.getByTestId('truckProfile.height.in'), '0');
+    await act(async () => fireEvent.press(screen.getByTestId('truckProfile.save')));
+    await waitFor(() => expect(calls).toHaveLength(3));
+    expect(calls[2]!.truck.heightM).toBeGreaterThan(calls[1]!.truck.heightM);
+    expect(screen.getByTestId('routeError.sheet.variant').props.accessibilityValue).toEqual({ text: 'noSafeRoute' });
+
+    await act(async () => resolveOld(ROUTE)); // the stale route for the 13'6" truck arrives last
+    expect(screen.queryByTestId('map.routeLine')).toBeNull();
+    expect(screen.getByTestId('routeError.sheet.variant').props.accessibilityValue).toEqual({ text: 'noSafeRoute' });
+  });
+
+  it('BR-29 AC-17: after a profile save the old route line is removed before the new answer arrives', async () => {
+    let resolveNew!: (r: PlanRouteResult) => void;
+    let n = 0;
+    const planRoute = jest.fn(async () => (++n === 1 ? ROUTE : new Promise<PlanRouteResult>((res) => (resolveNew = res))));
+    render(
+      <TruckProfileProvider initial={initialProfile()}>
+        <AppShell planRoute={planRoute} />
+      </TruckProfileProvider>
+    );
+    await planTrip();
+    expect(screen.getByTestId('map.routeLine')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('map.profileChip'));
+    fireEvent.changeText(screen.getByTestId('truckProfile.height.ft'), '14');
+    await act(async () => fireEvent.press(screen.getByTestId('truckProfile.save')));
+    await waitFor(() => expect(planRoute).toHaveBeenCalledTimes(2));
+    expect(screen.queryByTestId('map.routeLine')).toBeNull(); // removed → request …
+    expect(screen.getByTestId('route.loading')).toBeTruthy();
+    await act(async () => resolveNew(NO_SAFE)); // … → 422: still no line
+    expect(screen.queryByTestId('map.routeLine')).toBeNull();
+  });
+});
+
 describe('map and route planner (UC-03 / UC-04)', () => {
   it('BR-29 AC-23: with no truck details the chip says so and no route can be requested', () => {
     const planRoute = renderApp([], null);

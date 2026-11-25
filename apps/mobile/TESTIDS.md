@@ -15,7 +15,7 @@ Legend: ✅ implemented in E1 · ⏳ not yet, with the reason and the item that 
 | `truckProfile.{height,width,length}.error` / `.warning` | ✅ | |
 | `truckProfile.height.preset.13-6`, `.14-0`; `truckProfile.width.preset.8-6` | ✅ | ⏳ weight `80,000 lb` and metric presets |
 | `truckProfile.weight.lb` / `.kg` / `.stored` / `.error` / `.warning` | ✅ | |
-| `truckProfile.axles.value` / `.decrement` / `.increment` | ✅ | |
+| `truckProfile.axles.value` / `.decrement` / `.increment` / `.error` | ✅ | `.error` isn't in the spec table but follows its pattern (spec §13.1 to add) |
 | `truckProfile.hazmat.toggle` | ✅ | |
 | `truckProfile.hazmat.class.{1-9}` | ✅ | checkbox + checked state |
 | `truckProfile.hazmat.error` | ✅ | |
