@@ -38,7 +38,10 @@ jobs:
       # Each gate runs in the same no-network test container, as its own named step,
       # so a failure says which gate broke (BR-60, ADR-0003 item 6).
       - name: Build the test container
-        run: docker compose -p truckbeez-unit -f deploy/compose.unit.yaml build api-unit
+        run: |
+          # Created by the runner user up front, so the bind mount isn't a root-owned dir.
+          mkdir -p reports/api
+          docker compose -p truckbeez-unit -f deploy/compose.unit.yaml build api-unit
 
       - name: Typecheck
         run: docker compose -p truckbeez-unit -f deploy/compose.unit.yaml run --rm api-unit npm run typecheck
@@ -53,7 +56,6 @@ jobs:
 
       - name: Unit tests
         run: |
-          mkdir -p reports/api
           docker compose -p truckbeez-unit -f deploy/compose.unit.yaml run --rm api-unit npm run test:unit
 
       - name: Upload JUnit report

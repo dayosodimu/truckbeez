@@ -15,7 +15,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "test:routing-safety": "vitest run -t @routing-safety",
+    "test:routing-safety": "vitest run -t @routing-safety --reporter=default --reporter=json --outputFile.json=reports/routing-safety.json && node scripts/assert-tests-ran.mjs reports/routing-safety.json 50",
     "test:unit": "vitest run --reporter=default --reporter=junit --outputFile.junit=reports/junit.xml"
   },
   "dependencies": {

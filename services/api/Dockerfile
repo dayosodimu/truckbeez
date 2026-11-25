@@ -25,6 +25,7 @@ ENV APP_ENV=unit \
 COPY tsconfig*.json vitest.config.ts eslint.config.js ./
 COPY src ./src
 COPY test ./test
+COPY scripts ./scripts
 # Default command: typecheck, lint, then the unit suite. JUnit report is written to
 # /app/reports so CI can mount it out with -v. CI runs each gate as its own step.
 CMD ["sh", "-c", "npm run typecheck && npm run lint && npm run test:unit"]
