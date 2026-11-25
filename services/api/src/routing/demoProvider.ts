@@ -1,4 +1,4 @@
-import { MESSAGES, type LatLng } from "../contracts/route.js";
+import { MESSAGES, type LatLng } from "@truckbeez/shared";
 import type { RoutingProvider } from "./types.js";
 
 const EARTH_RADIUS_M = 6_371_000;

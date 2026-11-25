@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HAZMAT_CLASSES, truckProfileSchema, type TruckProfile } from "../src/contracts/route.js";
+import { HAZMAT_CLASSES, truckProfileSchema, type TruckProfile } from "@truckbeez/shared";
 import { createDemoProvider } from "../src/routing/demoProvider.js";
 import { decodeFlexiblePolyline } from "../src/routing/flexiblePolyline.js";
 import {

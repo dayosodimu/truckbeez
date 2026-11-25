@@ -5,7 +5,7 @@ import {
   type ApiError,
   type ApiErrorCode,
   type RouteResponse,
-} from "../contracts/route.js";
+} from "@truckbeez/shared";
 import { hazmatSafetyAssumptions } from "./hazmat.js";
 import { redact, type Secret } from "../secrets.js";
 import { RoutingProviderError, type RoutingProvider } from "./types.js";

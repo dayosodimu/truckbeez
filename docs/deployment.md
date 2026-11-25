@@ -47,11 +47,15 @@ environment. Environments differ only in configuration and secrets.
 ## Running locally
 
 ```bash
+# Install every workspace from the one lockfile (repo root; ADR-0003 step B)
+npm ci --ignore-scripts
+npm test                     # builds @truckbeez/shared, then tests every workspace
+
 # Unit tests in a container
 docker compose -p truckbeez-unit -f deploy/compose.unit.yaml run --rm --build api-unit
 
-# A staging-like stack on your machine
-docker build --target runtime -t truckbeez-api:local services/api
+# A staging-like stack on your machine (build context is the repo root)
+docker build -f services/api/Dockerfile --target runtime -t truckbeez-api:local .
 cp deploy/env/staging.env.example deploy/env/staging.env
 bash deploy/deploy.sh staging truckbeez-api:local   # mutable tags are allowed for staging only
 curl localhost:8080/version
@@ -59,8 +63,9 @@ curl localhost:8080/version
 
 ## One-time setup
 
-1. **Generate the lockfile** and commit it: `cd services/api && npm install` → commit `package-lock.json`
-   (the Dockerfile switches to `npm ci` automatically once it exists).
+1. **Lockfile:** one `package-lock.json` at the repo root covers every workspace (BR-46). After changing
+   any `package.json`, run `npm install` at the root and commit the lockfile; the Dockerfile and CI use
+   `npm ci --ignore-scripts` and fail if it is out of date.
 2. **Hosts:** one Docker host (or VM) per deployed environment, with Docker Engine + Compose v2,
    a deploy user in the `docker` group, and the edge port reachable only from the load balancer.
 3. **GitHub environments** (`Settings → Environments`): create `staging`, `preprod`, `production`.

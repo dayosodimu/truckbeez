@@ -9,18 +9,24 @@
     "node": ">=22"
   },
   "scripts": {
+    "prebuild": "npm run build -w @truckbeez/shared",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/server.js",
+    "predev": "npm run build -w @truckbeez/shared",
     "dev": "tsx watch src/server.ts",
+    "pretypecheck": "npm run build -w @truckbeez/shared",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "pretest": "npm run build -w @truckbeez/shared",
     "test": "vitest run",
+    "pretest:routing-safety": "npm run build -w @truckbeez/shared",
     "test:routing-safety": "vitest run -t @routing-safety",
+    "pretest:unit": "npm run build -w @truckbeez/shared",
     "test:unit": "vitest run --reporter=default --reporter=junit --outputFile.junit=reports/junit.xml"
   },
   "dependencies": {
+    "@truckbeez/shared": "*",
     "express": "^5.1.0",
-    "socket.io": "^4.8.1",
-    "zod": "^3.25.0"
+    "socket.io": "^4.8.1"
   },
   "devDependencies": {
     "@types/express": "^5.0.3",

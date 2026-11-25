@@ -47,9 +47,32 @@ jobs:
           path: reports/api
           if-no-files-found: warn
 
+  # Workspace packages other than the API (packages/shared now, apps/mobile from step E):
+  # one lockfile, installed with scripts off, then typecheck + tests (ADR-0003 step B).
+  workspaces:
+    name: Workspaces (shared contracts)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install from the lockfile (no install scripts)
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Build @truckbeez/shared
+        run: npm run build:shared
+      - name: Typecheck workspaces
+        run: npm run typecheck --workspaces --if-present
+      - name: Test @truckbeez/shared
+        run: npm test -w @truckbeez/shared
+
   build-image:
     name: Build, scan and publish image
-    needs: unit-tests
+    needs: [unit-tests, workspaces]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -69,7 +92,8 @@ jobs:
             --build-arg APP_VERSION="${GITHUB_SHA}" \
             --label org.opencontainers.image.revision="${GITHUB_SHA}" \
             -t "$TAG" \
-            services/api
+            -f services/api/Dockerfile \
+            .
 
       - name: Scan image (fail on fixable Critical/High)
         run: |
