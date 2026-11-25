@@ -43,7 +43,7 @@ jobs:
       REMOTE: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
       REMOTE_DIR: truckbeez/deploy
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Until a host exists for this environment, skip the deploy with a visible
       # warning instead of failing the whole pipeline on an empty ssh target.
