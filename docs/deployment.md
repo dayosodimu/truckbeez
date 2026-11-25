@@ -52,7 +52,7 @@ npm ci --ignore-scripts
 npm test                     # builds @truckbeez/shared, then tests every workspace
 
 # Unit tests in a container
-docker compose -p truckbeez-unit -f deploy/compose.unit.yaml run --rm --build api-unit
+docker compose -p truckbeez-unit -f deploy/compose.unit.yaml run --rm --build api-unit   # typecheck + lint + unit tests
 
 # A staging-like stack on your machine (build context is the repo root)
 docker build -f services/api/Dockerfile --target runtime -t truckbeez-api:local .

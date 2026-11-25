@@ -39,12 +39,13 @@ FROM deps AS test
 ENV APP_ENV=unit \
     CI=true
 WORKDIR /app/services/api
-COPY services/api/tsconfig*.json services/api/vitest.config.ts ./
+COPY services/api/tsconfig*.json services/api/vitest.config.ts services/api/eslint.config.js ./
 COPY services/api/src ./src
 COPY services/api/test ./test
-# Default command runs the unit suite; JUnit report is written to
-# /app/services/api/reports so CI can mount it out with -v.
-CMD ["sh", "-c", "npm run typecheck && npm run test:unit"]
+COPY services/api/scripts ./scripts
+# Default command: typecheck, lint, then the unit suite. JUnit report is written to
+# /app/services/api/reports so CI can mount it out with -v. CI runs each gate as its own step.
+CMD ["sh", "-c", "npm run typecheck && npm run lint && npm run test:unit"]
 
 # ---------- build: compile TypeScript ----------
 FROM deps AS build

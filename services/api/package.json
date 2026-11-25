@@ -16,10 +16,11 @@
     "dev": "tsx watch src/server.ts",
     "pretypecheck": "npm run build -w @truckbeez/shared",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
     "pretest": "npm run build -w @truckbeez/shared",
     "test": "vitest run",
     "pretest:routing-safety": "npm run build -w @truckbeez/shared",
-    "test:routing-safety": "vitest run -t @routing-safety",
+    "test:routing-safety": "vitest run -t @routing-safety --reporter=default --reporter=json --outputFile.json=reports/routing-safety.json && node scripts/assert-tests-ran.mjs reports/routing-safety.json 50",
     "pretest:unit": "npm run build -w @truckbeez/shared",
     "test:unit": "vitest run --reporter=default --reporter=junit --outputFile.junit=reports/junit.xml"
   },
@@ -36,6 +37,10 @@
     "@types/supertest": "^6.0.3",
     "tsx": "^4.19.0",
     "typescript": "^5.8.0",
-    "vitest": "^3.2.0"
+    "vitest": "^3.2.0",
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "globals": "^16.5.0",
+    "typescript-eslint": "^8.73.0"
   }
 }
