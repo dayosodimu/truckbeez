@@ -36,7 +36,7 @@ export function createRouteRouter(
     try {
       const result = await provider.route(parsed.data);
       // Reported on success and on 422: an assumption may be why the route is longer, or missing.
-      const safetyAssumptions = hazmatSafetyAssumptions(parsed.data.truck.hazmatClasses);
+      const safetyAssumptions = hazmatSafetyAssumptions(parsed.data.truck);
       if (result.kind === "no_safe_route") {
         // 422 with no geometry at all: the app must have nothing to draw.
         sendError(res, 422, "NO_SAFE_ROUTE", MESSAGES.noSafeRoute, { reasons: result.reasons, safetyAssumptions });

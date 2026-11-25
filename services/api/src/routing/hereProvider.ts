@@ -68,7 +68,7 @@ export function buildHereRouteUrl(request: RouteRequest, apiKey: string): URL {
   params.set("vehicle[grossWeight]", String(ceilWhole(truck.grossWeightKg)));
   params.set("vehicle[axleCount]", String(truck.axleCount));
 
-  const goods = toHereHazardousGoods(truck.hazmatClasses);
+  const goods = toHereHazardousGoods(truck);
   if (goods.length > 0) {
     params.set("vehicle[shippedHazardousGoods]", goods.join(","));
   }
