@@ -48,7 +48,7 @@ environment. Environments differ only in configuration and secrets.
 
 ```bash
 # Unit tests in a container
-docker compose -p truckbeez-unit -f deploy/compose.unit.yaml run --rm --build api-unit
+docker compose -p truckbeez-unit -f deploy/compose.unit.yaml run --rm --build api-unit   # typecheck + lint + unit tests
 
 # A staging-like stack on your machine
 docker build --target runtime -t truckbeez-api:local services/api

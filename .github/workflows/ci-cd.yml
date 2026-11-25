@@ -1,7 +1,8 @@
 # TruckBeez API — container pipeline
 #
-#   PR:          unit tests (container) → build runtime image + vulnerability scan (no push)
-#   push main:   unit tests → build, scan, push image → staging → preprod → production
+#   PR:          typecheck + lint + @routing-safety + unit tests (container)
+#                → build runtime image + vulnerability scan (no push)
+#   push main:   the same gates → build, scan, push image → staging → preprod → production
 #
 # The image is built ONCE and promoted by digest. Production waits for a
 # required reviewer on the GitHub `production` environment.
@@ -34,10 +35,28 @@ jobs:
       # TODO: pin first-party actions by SHA too once the repo's pinning policy is set.
       - uses: actions/checkout@v4
 
-      - name: Run unit tests in the test container
+      # Each gate runs in the same no-network test container, as its own named step,
+      # so a failure says which gate broke (BR-60, ADR-0003 item 6).
+      - name: Build the test container
         run: |
+          # Created by the runner user up front, so the bind mount isn't a root-owned dir.
           mkdir -p reports/api
-          docker compose -p truckbeez-unit -f deploy/compose.unit.yaml run --rm --build api-unit
+          docker compose -p truckbeez-unit -f deploy/compose.unit.yaml build api-unit
+
+      - name: Typecheck
+        run: docker compose -p truckbeez-unit -f deploy/compose.unit.yaml run --rm api-unit npm run typecheck
+
+      - name: Lint
+        run: docker compose -p truckbeez-unit -f deploy/compose.unit.yaml run --rm api-unit npm run lint
+
+      # Hazmat and dimension correctness (non-negotiable #2). Fails the PR on its own, even
+      # if someone later marks the full suite as non-blocking.
+      - name: "@routing-safety tests"
+        run: docker compose -p truckbeez-unit -f deploy/compose.unit.yaml run --rm api-unit npm run test:routing-safety
+
+      - name: Unit tests
+        run: |
+          docker compose -p truckbeez-unit -f deploy/compose.unit.yaml run --rm api-unit npm run test:unit
 
       - name: Upload JUnit report
         if: always()
