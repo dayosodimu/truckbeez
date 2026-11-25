@@ -1,4 +1,4 @@
-import { cmToFeetInches, formatFeetInches, groupThousands, inchesToCmUp, lbToKgUp, parseLatLng, parseOneDecimal, parseWhole } from '../src/units';
+import { ceilWhole, cmToFeetInches, formatFeetInches, groupThousands, inchesToCmUp, lbToKgUp, parseLatLng, parseOneDecimal, parseWhole } from '../src/units';
 
 describe('units: the truck rounds up, limits round down (BR-29 §4.2)', () => {
   it('BR-29 AC-1/AC-2: 13 ft 6 in → 412 cm, 8 ft 6 in → 260 cm, 80,000 lb → 36,288 kg', () => {
@@ -12,10 +12,11 @@ describe('units: the truck rounds up, limits round down (BR-29 §4.2)', () => {
     for (let inches = 72; inches <= 192; inches += 0.5) {
       expect(inchesToCmUp(inches)).toBeGreaterThanOrEqual(inches * 2.54 - 1e-9);
     }
-    expect(inchesToCmUp(100 / 2.54)).toBe(100); // exactly 100 cm, not 101
+    expect(ceilWhole(3.0000000000000004)).toBe(3); // binary float noise is not a real centimetre
+    expect(ceilWhole(411.48)).toBe(412);
   });
 
-  it('BR-31 AC-3: a 376 cm limit reads 12 ft 4 in (rounded down, never overstating a clearance)', () => {
+  it('limit formatting: a 376 cm limit reads 12 ft 4 in (rounded down, never overstating a clearance; for BR-31 AC-3 once reasonDetails exist)', () => {
     expect(formatFeetInches(cmToFeetInches(376, 'down'))).toBe(`12'4"`);
   });
 

@@ -46,7 +46,7 @@ describe('POST /api/route client (BR-31 §7 states)', () => {
   });
 
   it('@routing-safety a 200 that is not a real route is "unavailable", not drawn', async () => {
-    for (const body of [{}, { geometry: [] }, { ...route, geometry: [{ lat: 'x' }, { lat: 1, lng: 2 }] }, { ...route, distanceM: null }]) {
+    for (const body of [{}, { geometry: [] }, { ...route, geometry: [route.geometry[0]] }, { ...route, geometry: [{ lat: 'x' }, { lat: 1, lng: 2 }] }, { ...route, distanceM: null }]) {
       expect((await createPlanRoute('', respond(200, body) as unknown as typeof fetch)(request)).kind).toBe('unavailable');
     }
   });

@@ -64,7 +64,7 @@ RUN --mount=type=cache,target=/root/.npm \
     npm ci --omit=dev --ignore-scripts --no-audit --no-fund \
       --workspace @truckbeez/api --workspace @truckbeez/shared
 # Guard: build tooling and app-only packages never reach the runtime image.
-RUN for pkg in typescript vitest eslint tsx terser lightningcss react react-native expo; do \
+RUN for pkg in typescript vitest eslint tsx jest terser lightningcss metro react react-native expo @babel/core @expo/cli; do \
       if [ -e "node_modules/$pkg" ]; then echo "prod-deps: unexpected $pkg in the API production install" >&2; exit 1; fi; \
     done
 

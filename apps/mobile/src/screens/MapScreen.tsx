@@ -53,6 +53,12 @@ export function MapScreen({ planRoute = defaultPlanRoute, onEditProfile, profile
   const retryTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const lastVariant = useRef<RouteErrorVariant | undefined>(undefined);
   const lastProfileVersion = useRef(profileVersion);
+  /**
+   * Every request gets a number; only the answer to the latest one is used. A late answer for
+   * an older request (an old truck profile, an earlier destination) must never draw a route
+   * or restart retries (non-negotiable #2; QA review of PR #32).
+   */
+  const latestRequest = useRef(0);
 
   const clearRetry = () => {
     if (retryTimer.current) clearTimeout(retryTimer.current);
@@ -63,9 +69,11 @@ export function MapScreen({ planRoute = defaultPlanRoute, onEditProfile, profile
     async (target: Trip, options: { afterProfileChange?: boolean; isRetry?: boolean } = {}) => {
       if (!profile) return;
       clearRetry();
+      const id = ++latestRequest.current;
       if (options.isRetry) setRetrying(true);
       else setState({ status: 'loading' });
       const result = await planRoute({ origin: target.origin, destination: target.destination, truck: profile });
+      if (id !== latestRequest.current) return; // superseded: ignore, don't draw, don't retry
       setRetrying(false);
 
       if (result.kind === 'route') {
@@ -124,6 +132,8 @@ export function MapScreen({ planRoute = defaultPlanRoute, onEditProfile, profile
 
   const closeSheet = () => {
     clearRetry();
+    latestRequest.current += 1; // an answer still in flight for this trip is now stale
+    setRetrying(false);
     setState({ status: 'idle' });
   };
 

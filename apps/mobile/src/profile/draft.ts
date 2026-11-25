@@ -1,5 +1,5 @@
 import { truckProfileSchema, type HazmatClass, type TruckProfile, type TunnelCategory } from '@truckbeez/shared';
-import { inchesToCmUp, lbToKgUp, parseOneDecimal, parseWhole } from '../units';
+import { cmToFeetInches, inchesToCmUp, kgToLb, lbToKgUp, parseOneDecimal, parseWhole } from '../units';
 
 /**
  * The truck details editor's draft (BR-29 §4). The driver's entered values and unit are kept,
@@ -191,3 +191,37 @@ export function announceErrors(errors: DraftCheck['errors']): string {
 
 const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const lowerFirst = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
+
+/**
+ * Switch the editor's unit system (BR-29 §4.2, AC-4). Fields the driver already typed in the
+ * target system are kept as typed; empty ones are filled from the other system, rounded UP
+ * (the truck's own numbers never shrink). The stored value doesn't change until Save.
+ */
+export function switchUnits(draft: ProfileDraft, to: UnitSystem): ProfileDraft {
+  if (draft.units === to) return draft;
+  const next: ProfileDraft = { ...draft, units: to };
+  for (const field of ['height', 'width', 'length'] as const) {
+    const value = draft[field];
+    if (to === 'metric' && !value.cm.trim()) {
+      const ft = parseWhole(value.ft);
+      const inches = value.in.trim() ? parseOneDecimal(value.in) : 0;
+      if (ft !== undefined && inches !== undefined && inches < 12) next[field] = { ...value, cm: String(inchesToCmUp(ft * 12 + inches)) };
+    }
+    if (to === 'imperial' && !value.ft.trim()) {
+      const cm = parseOneDecimal(value.cm);
+      if (cm !== undefined) {
+        const fi = cmToFeetInches(Math.ceil(cm), 'up');
+        next[field] = { ...value, ft: String(fi.ft), in: String(fi.in) };
+      }
+    }
+  }
+  if (to === 'metric' && !draft.weight.kg.trim()) {
+    const lb = parseWhole(draft.weight.lb);
+    if (lb !== undefined) next.weight = { ...draft.weight, kg: String(lbToKgUp(lb)) };
+  }
+  if (to === 'imperial' && !draft.weight.lb.trim()) {
+    const kg = parseWhole(draft.weight.kg);
+    if (kg !== undefined) next.weight = { ...draft.weight, lb: String(kgToLb(kg, 'up')) };
+  }
+  return next;
+}

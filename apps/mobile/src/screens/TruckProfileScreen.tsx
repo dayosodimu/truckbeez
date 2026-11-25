@@ -8,6 +8,7 @@ import {
   checkDraft,
   EMPTY_DRAFT,
   FIELD_ORDER,
+  switchUnits,
   type DimensionField,
   type Field,
   type ProfileDraft,
@@ -217,7 +218,7 @@ export function TruckProfileScreen({ initial, onSave, onBack }: Props) {
               accessibilityRole="radio"
               accessibilityState={{ checked: draft.units === u }}
               accessibilityLabel={u === 'imperial' ? 'ft / lb, feet and pounds' : 'm / kg, metres and kilograms'}
-              onPress={() => update({ units: u })}
+              onPress={() => setDraft((d) => switchUnits(d, u))}
               style={[styles.segment, { borderColor: palette.brandStrong }, draft.units === u && { backgroundColor: palette.brand }]}
             >
               <Text style={[styles.segmentText, { color: draft.units === u ? palette.onBrand : palette.text }]}>
