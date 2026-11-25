@@ -13,15 +13,15 @@ Core capabilities:
 - **B2B subscription (fleet)** – logistics business owners subscribe to track and report on their drivers' navigation: live location, trip history, route adherence, ETA, hazmat compliance reports.
 
 ## Proposed technical stack
-As of November 2026 the repo has no application code yet, so this is the **proposed starting stack**. Agents scaffolding new code use it. Once code exists, agents follow what the repo actually uses, and this table is updated whenever a choice changes.
+This is the starting stack. Agents follow what the repo actually uses, and this table is updated whenever a choice changes. **Repo layout is fixed by ADR-0003** (`docs/adr/0003-repo-layout.md`): one API in `services/api`, one driver app in `apps/mobile` (Expo SDK 54 / React 19), shared contracts in `packages/shared`. Do not create `apps/api` or `apps/server`.
 
 | Layer | Default |
 |---|---|
-| Mobile | React Native (Expo) + TypeScript (iOS & Android), offline-capable map tiles |
-| Web (fleet dashboard) | React + TypeScript (Next.js) |
+| Mobile | React Native (Expo SDK 54, React 19, New Architecture) + TypeScript (iOS & Android), offline-capable map tiles |
+| Web (fleet dashboard) | React + TypeScript (Next.js), later deliverable; Fleet screens live in the mobile app for now (ADR-0003 decision 2) |
 | API | Node.js + TypeScript (Express + Socket.IO), REST + WebSocket for live tracking — scaffold in `services/api` |
 | Data | PostgreSQL + PostGIS, Redis (live positions, rate limits), object storage for trip traces |
-| Routing | Commercial truck-routing engine (e.g. HERE / TomTom / Trimble) or self-hosted OSRM/Valhalla with truck profiles, behind an internal `routing-service` abstraction |
+| Routing | **HERE Routing API v8** (truck mode) behind the `RoutingProvider` interface; routes with `critical` notices are always discarded. TomTom is the fallback. See [ADR-0001](docs/adr/0001-truck-routing-engine.md) |
 | Payments | Stripe Billing for B2B subscriptions (seat-based per driver) |
 | Infra | Docker containers per environment (unit → staging → preprod → prod, see `docs/deployment.md`), Terraform, GitHub Actions CI/CD |
 | Testing | Appium (mobile E2E – preferred), Playwright (web), Jest/Vitest (unit), k6 (load), axe (a11y) |
@@ -52,3 +52,8 @@ As of November 2026 the repo has no application code yet, so this is the **propo
 | `truckbeez-devops-specialist` | CI/CD, infra-as-code, environments, observability, releases | All agents (environments, pipelines) |
 
 When a task crosses roles, the agent doing the work finishes its part, then states clearly which agent should pick up next and what it needs.
+
+## SDLC documents and skills
+The SDLC document set lives in `docs/sdlc/` (00 overview, 01 charter … 12 operations); its `README.md` lists each document's owner. Requirement IDs (BR, FR-M/W/A, NFR, M-S/W-S, TC-M/W/A/P) link documents, code and tests, so keep them in code comments and test titles (`test('TC-A-003 … [FR-A-03]')`).
+
+Department skills in `.claude/skills/` (`sdlc-product-owner`, `sdlc-solution-architect`, `sdlc-design-lead`, `sdlc-backend-engineer`, `sdlc-qa-lead`, `sdlc-devops-sre`) write and update those documents and their code artifacts; `ultra-code` builds a feature slice from them. Use the matching skill when a task changes an SDLC document, and update the affected document in the same PR as the code.

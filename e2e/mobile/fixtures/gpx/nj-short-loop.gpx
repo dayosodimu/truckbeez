@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Source: SYNTHETIC. Hand-placed points along Doremus Ave / Port St, Port Newark, NJ (about 2 km).
+  Not a recorded drive and not checked against restrictions: use only for "position moves and the
+  map follows" checks, never as routing-safety evidence.
+  Truck profile: any. Tests: TB-PLT-01 smoke (position available at launch), GPX helper unit tests.
+-->
+<gpx version="1.1" creator="truckbeez-qa" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>nj-short-loop</name>
+    <trkseg>
+      <trkpt lat="40.705600" lon="-74.137900"><ele>3</ele></trkpt>
+      <trkpt lat="40.701800" lon="-74.140500"><ele>3</ele></trkpt>
+      <trkpt lat="40.697900" lon="-74.143200"><ele>3</ele></trkpt>
+      <trkpt lat="40.694100" lon="-74.145800"><ele>3</ele></trkpt>
+      <trkpt lat="40.692300" lon="-74.152100"><ele>3</ele></trkpt>
+      <trkpt lat="40.690600" lon="-74.158400"><ele>3</ele></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: hos-api-and-tables
+expected_outcome: |
+  Every new endpoint lists method, path, roles allowed and the requirement ID it serves; Request fields are given with types and required/optional; Defines at least one realtime Socket.IO event with payload and who receives it (room/fleet scoping); Lists error codes for the new endpoints (e.g. 403 for another fleet's driver); Database tables have typed columns and at least one index tied to the query it serves; States retention or deletion for the drive-time / location data; Ends with a Handoffs list naming QA and at least one other department

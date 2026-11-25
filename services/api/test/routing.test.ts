@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { HAZMAT_CLASSES, truckProfileSchema, type TruckProfile } from "@truckbeez/shared";
+import { HAZMAT_CLASSES, HAZMAT_DIVISIONS, truckProfileSchema, type TruckProfile } from "@truckbeez/shared";
 import { createDemoProvider } from "../src/routing/demoProvider.js";
 import { decodeFlexiblePolyline } from "../src/routing/flexiblePolyline.js";
 import {
   HERE_GOODS_BY_CLASS,
+  HERE_GOODS_BY_DIVISION,
   HERE_HAZARDOUS_GOODS,
+  inhalationAssumedClasses,
   hazmatSafetyAssumptions,
   INHALATION_ASSUMED_CLASSES,
   toHereHazardousGoods,
@@ -191,7 +193,7 @@ describe("@routing-safety HERE never sees a smaller, lighter or cleaner truck", 
   });
 
   it.each(HAZMAT_CLASSES)("@routing-safety hazmat class %i maps to at least one valid HERE category", (hazmatClass) => {
-    const goods = toHereHazardousGoods([hazmatClass]);
+    const goods = toHereHazardousGoods({ hazmatClasses: [hazmatClass] });
     expect(goods.length).toBeGreaterThan(0);
     for (const good of goods) expect(HERE_HAZARDOUS_GOODS).toContain(good);
   });
@@ -202,14 +204,109 @@ describe("@routing-safety HERE never sees a smaller, lighter or cleaner truck", 
       expect(HERE_GOODS_BY_CLASS[hazmatClass]).toContain("poisonousInhalation");
     }
     for (const hazmatClass of HAZMAT_CLASSES) {
-      const reported = hazmatSafetyAssumptions([hazmatClass]).length > 0;
+      const reported = hazmatSafetyAssumptions({ hazmatClasses: [hazmatClass] }).length > 0;
       expect(reported).toBe(INHALATION_ASSUMED_CLASSES.includes(hazmatClass));
     }
   });
 
   it("@routing-safety inhalation hazards are assumed for classes 2 and 6 until the division is captured", () => {
-    expect(toHereHazardousGoods([2])).toContain("poisonousInhalation");
-    expect(toHereHazardousGoods([6])).toContain("poisonousInhalation");
+    expect(toHereHazardousGoods({ hazmatClasses: [2] })).toContain("poisonousInhalation");
+    expect(toHereHazardousGoods({ hazmatClasses: [6] })).toContain("poisonousInhalation");
+  });
+});
+
+describe("@routing-safety BR-59 hazmat divisions and the inhalation-hazard flag", () => {
+  const goods = (truck: Partial<TruckProfile>) =>
+    toHereHazardousGoods({ hazmatClasses: [], ...truck } as TruckProfile);
+  const assumed = (truck: Partial<TruckProfile>) => inhalationAssumedClasses({ hazmatClasses: [], ...truck } as TruckProfile);
+
+  it.each(HAZMAT_DIVISIONS)("@routing-safety division %s maps to valid HERE categories", (division) => {
+    expect(HERE_GOODS_BY_DIVISION[division].length).toBeGreaterThan(0);
+    for (const good of HERE_GOODS_BY_DIVISION[division]) expect(HERE_HAZARDOUS_GOODS).toContain(good);
+  });
+
+  it("@routing-safety 2.1 and 2.2 drop the inhalation category and the assumption", () => {
+    expect(goods({ hazmatClasses: [2], hazmatDivisions: ["2.1"] })).toEqual(["flammable", "gas"]);
+    expect(goods({ hazmatClasses: [2], hazmatDivisions: ["2.2"] })).toEqual(["gas"]);
+    expect(assumed({ hazmatClasses: [2], hazmatDivisions: ["2.1", "2.2"] })).toEqual([]);
+  });
+
+  it("@routing-safety 2.3 always sends poisonousInhalation, with no assumption to report", () => {
+    expect(goods({ hazmatClasses: [2], hazmatDivisions: ["2.3"] })).toContain("poisonousInhalation");
+    expect(goods({ hazmatClasses: [2], hazmatDivisions: ["2.2", "2.3"] })).toContain("poisonousInhalation");
+    expect(assumed({ hazmatClasses: [2], hazmatDivisions: ["2.3"] })).toEqual([]);
+  });
+
+  it("@routing-safety 6.1 keeps poisonousInhalation unless the driver says it is NOT an inhalation hazard", () => {
+    expect(goods({ hazmatClasses: [6], hazmatDivisions: ["6.1"] })).toContain("poisonousInhalation");
+    expect(assumed({ hazmatClasses: [6], hazmatDivisions: ["6.1"] })).toEqual([6]);
+    expect(goods({ hazmatClasses: [6], hazmatDivisions: ["6.1"], inhalationHazard: true })).toContain("poisonousInhalation");
+    expect(assumed({ hazmatClasses: [6], hazmatDivisions: ["6.1"], inhalationHazard: true })).toEqual([]);
+    const notPih = goods({ hazmatClasses: [6], hazmatDivisions: ["6.1"], inhalationHazard: false });
+    expect(notPih).not.toContain("poisonousInhalation");
+    expect(notPih).toEqual(expect.arrayContaining(["poison", "harmfulToWater"]));
+    expect(assumed({ hazmatClasses: [6], hazmatDivisions: ["6.1"], inhalationHazard: false })).toEqual([]);
+  });
+
+  it("@routing-safety 6.2 infectious keeps its own categories without inhalation", () => {
+    expect(goods({ hazmatClasses: [6], hazmatDivisions: ["6.2"] })).not.toContain("poisonousInhalation");
+    expect(assumed({ hazmatClasses: [6], hazmatDivisions: ["6.2"] })).toEqual([]);
+    expect(goods({ hazmatClasses: [6], hazmatDivisions: ["6.1", "6.2"] })).toContain("poisonousInhalation");
+  });
+
+  it("@routing-safety inhalationHazard:false alone never drops the class 2/6 assumption (division unknown)", () => {
+    for (const hazmatClass of [2, 6] as const) {
+      expect(goods({ hazmatClasses: [hazmatClass], inhalationHazard: false })).toContain("poisonousInhalation");
+      expect(assumed({ hazmatClasses: [hazmatClass], inhalationHazard: false })).toEqual([hazmatClass]);
+    }
+  });
+
+  it("@routing-safety a declared inhalation hazard is sent for any class (e.g. a class 8 PIH)", () => {
+    expect(goods({ hazmatClasses: [8], inhalationHazard: true })).toEqual(["corrosive", "poisonousInhalation"]);
+    expect(goods({ hazmatClasses: [8] })).not.toContain("poisonousInhalation");
+  });
+
+  it("@routing-safety a division only refines its own class; other classes keep their mapping", () => {
+    // 2.2 declared, class 6 division unknown: class 6 is still assumed.
+    const truck = { hazmatClasses: [2, 6], hazmatDivisions: ["2.2"] } as Partial<TruckProfile>;
+    expect(goods(truck)).toContain("poisonousInhalation");
+    expect(assumed(truck)).toEqual([6]);
+  });
+
+  it("@routing-safety every reported assumption matches a poisonousInhalation actually sent", () => {
+    const cases: Partial<TruckProfile>[] = [];
+    for (const divisions of [undefined, ["2.1"], ["2.3"], ["6.1"], ["6.2"], ["2.2", "6.1"]] as const) {
+      for (const inhalationHazard of [undefined, true, false]) {
+        const hazmatClasses = [...new Set([2, 6, ...(divisions ?? []).map((d) => Number(d[0]))])] as TruckProfile["hazmatClasses"];
+        const truck = { hazmatClasses, hazmatDivisions: divisions ? [...divisions] : undefined, inhalationHazard };
+        if (truckProfileSchema.safeParse({ ...DRY_VAN, ...truck }).success) cases.push(truck);
+      }
+    }
+    expect(cases.length).toBeGreaterThan(10);
+    for (const truck of cases) {
+      if (assumed(truck).length > 0) expect(goods(truck)).toContain("poisonousInhalation");
+    }
+  });
+
+  describe("validation", () => {
+    const parse = (truck: Partial<TruckProfile> & Record<string, unknown>) => truckProfileSchema.safeParse({ ...DRY_VAN, ...truck });
+
+    it("accepts divisions with their class and the inhalation flag", () => {
+      expect(parse({ hazmatClasses: [2, 6], hazmatDivisions: ["2.1", "6.1"], inhalationHazard: false }).success).toBe(true);
+      expect(parse({ hazmatClasses: [8], inhalationHazard: true }).success).toBe(true);
+    });
+
+    it.each([
+      ["a division without its class", { hazmatClasses: [3], hazmatDivisions: ["2.1"] }],
+      ["an unsupported division", { hazmatClasses: [1], hazmatDivisions: ["1.1"] }],
+      ["a numeric division", { hazmatClasses: [2], hazmatDivisions: [2.1] }],
+      ["a repeated division", { hazmatClasses: [2], hazmatDivisions: ["2.1", "2.1"] }],
+      ["2.3 declared as not an inhalation hazard", { hazmatClasses: [2], hazmatDivisions: ["2.3"], inhalationHazard: false }],
+      ["the inhalation flag with no hazmat", { hazmatClasses: [], inhalationHazard: true }],
+      ["a string flag", { hazmatClasses: [6], inhalationHazard: "no" }],
+    ])("@routing-safety rejects %s", (_name, truck) => {
+      expect(parse(truck as never).success).toBe(false);
+    });
   });
 });
 

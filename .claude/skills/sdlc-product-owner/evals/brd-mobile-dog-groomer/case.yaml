@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: brd-mobile-dog-groomer
+expected_outcome: |
+  A complete BRD for a non-TruckBeez project: lead sentence, goals, personas table, BR-NN table with MoSCoW priority, business rules, constraints, assumptions marked; no TruckBeez details leak in.
