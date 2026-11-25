@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: add-hos-reminder-feature
+expected_outcome: |
+  Adds new FR rows continuing the TruckBeez ID scheme (FR-M/FR-W), traced to a BR, with measurable thresholds, acceptance criteria, relevant NFRs, assumptions marked, and a Handoffs list for design, backend and QA.

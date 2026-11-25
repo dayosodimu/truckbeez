@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: implement-hazard-slice
+expected_outcome: |
+  Contains route handlers for POST /v1/hazards, GET /v1/hazards (bbox) and POST /v1/hazards/{id}/votes; Input is validated with the documented error codes (400 VALIDATION_FAILED, 401, 404, 409 ALREADY_VOTED) in the shared error envelope; Expiry rule (60 min, +30 min per confirmation) is a pure function with no framework imports; Unit tests for the expiry logic were actually executed and passed (shown in the run transcript or a saved test log); Test titles include TC IDs and requirement IDs (e.g. TC-A-003 ... [FR-A-03]); A migration creates hazards and hazard_votes with a GIST index on point and a unique constraint on (hazard_id, user_id); Socket.IO hazard:new is emitted only to drivers near the hazard (room or distance scoping), not broadcast to everyone; The final report states which checks were run and which could not be run (e.g. dependencies not installable)
+context:
+  scaffold_script: place-files.sh

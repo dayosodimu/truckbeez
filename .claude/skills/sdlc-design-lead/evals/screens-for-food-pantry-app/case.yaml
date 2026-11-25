@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: screens-for-food-pantry-app
+expected_outcome: |
+  A screen inventory for mobile and web with IDs, purposes and requirement placeholders, key user flows, design principles specific to this context, accessibility checklist, assumptions; no TruckBeez details leak in.

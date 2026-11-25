@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: fit-dispatched-routes-feature
+expected_outcome: |
+  Describes the change within the existing Express + Socket.IO + Expo + Docker architecture (not replacing it): affected components, a numbered flow, offline/delivery-failure handling, security (authorisation of fleet→driver), data changes, any ADR, and handoffs to backend, QA, DevOps, product.
