@@ -63,7 +63,10 @@ export function mapReasons(reasons: readonly string[], profileHasHazmat: boolean
   const unmapped: string[] = [];
   for (const reason of reasons) {
     const lower = reason.toLowerCase();
-    const rule = RULES.find((r) => r.keywords.some((k) => lower.includes(k)));
+    // "Bridge weight limit" is a weight limit, not a low bridge: "bridge" alone only implies
+    // height when no weight/axle keyword is present (design review of PR #32).
+    const isWeight = /\b(weight|axle)/.test(lower);
+    const rule = RULES.find((r) => r.keywords.some((k) => lower.includes(k) && !(k === 'bridge' && isWeight)));
     if (rule) kinds.add(rule.kind);
     else unmapped.push(reason);
   }

@@ -92,6 +92,28 @@ describe('map and route planner (UC-03 / UC-04)', () => {
     }
   });
 
+  it('@routing-safety ADR-0003 S3: a 422 caused by the inhalation assumption tells the driver so on the sheet', async () => {
+    const assumption = { code: 'HAZMAT_INHALATION_ASSUMED' as const, hazmatClasses: [2 as const], message: 'Routed as an inhalation hazard.' };
+    renderApp([{ kind: 'noSafeRoute', reasons: ['Violated avoid tunnel.'], safetyAssumptions: [assumption] }], { ...VAN, hazmat: true, hazmatClasses: [2] });
+    await planTrip();
+    expect(screen.getByTestId('routeError.assumption.0')).toHaveTextContent('Routed as an inhalation hazard.', { exact: false });
+    expect(screen.queryByTestId('map.routeLine')).toBeNull();
+  });
+
+  it('the bottom panel scrolls, so the sheet stays reachable at large font sizes', async () => {
+    renderApp([NO_SAFE]);
+    await planTrip();
+    expect(screen.getByTestId('route.panel').type).toBe('RCTScrollView');
+  });
+
+  it('the profile chip names the truck; role and hint carry "button" and "double-tap to edit"', () => {
+    renderApp([]);
+    const chip = screen.getByTestId('map.profileChip');
+    expect(chip.props.accessibilityLabel).toBe('Truck details: 13 feet 6 inches, 80,000 pounds');
+    expect(chip.props.accessibilityRole).toBe('button');
+    expect(chip.props.accessibilityHint).toBe('Double-tap to edit your truck details.');
+  });
+
   it('BR-31 AC-5 + "still none": Check truck details → save re-requests the SAME destination with the new profile', async () => {
     const planRoute = renderApp([NO_SAFE, NO_SAFE]);
     await planTrip();

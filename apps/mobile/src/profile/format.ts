@@ -61,7 +61,7 @@ export interface ChipText {
  */
 export function formatProfileChip(saved: SavedProfile | undefined, options: { compact?: boolean; units?: UnitSystem } = {}): ChipText {
   if (!saved) {
-    return { text: 'Set truck details', accessibilityLabel: 'Set truck details. No truck details yet. Button.' };
+    return { text: 'Set truck details', accessibilityLabel: 'Set truck details. No truck details yet.' };
   }
   const units = options.units ?? saved.draft.units;
   const height = heightText(saved, units);
@@ -71,7 +71,8 @@ export function formatProfileChip(saved: SavedProfile | undefined, options: { co
   const spoken = [height.spoken, ...(options.compact ? [] : [weight.spoken]), ...(hazmat ? [hazmat.spoken] : [])];
   return {
     text: parts.join(' · '),
-    accessibilityLabel: `Truck details: ${spoken.join(', ')}. Button. Double-tap to edit.`,
+    // The role already says "button" and the hint says "double-tap to edit" (WCAG 2.5.3 / 4.1.2).
+    accessibilityLabel: `Truck details: ${spoken.join(', ')}`,
   };
 }
 

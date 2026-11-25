@@ -9,7 +9,7 @@ Legend: ✅ implemented in E1 · ⏳ not yet, with the reason and the item that 
 | testID | E1 | Notes |
 |---|---|---|
 | `truckProfile.screen` | ✅ | |
-| `truckProfile.units` / `.units.imperial` / `.units.metric` | ✅ | radio group |
+| `truckProfile.units` / `.units.imperial` / `.units.metric` | ✅ | radio group, `checked` state |
 | `truckProfile.{height,width,length}.ft` / `.in` / `.cm` | ✅ | `.cm` in metric only |
 | `truckProfile.{height,width,length}.stored` | ✅ | "Saved as … cm" |
 | `truckProfile.{height,width,length}.error` / `.warning` | ✅ | |
@@ -19,7 +19,7 @@ Legend: ✅ implemented in E1 · ⏳ not yet, with the reason and the item that 
 | `truckProfile.hazmat.toggle` | ✅ | |
 | `truckProfile.hazmat.class.{1-9}` | ✅ | checkbox + checked state |
 | `truckProfile.hazmat.error` | ✅ | |
-| `truckProfile.tunnel.{B,C,D,E,notSure}` | ✅ | radio + selected; "Not sure" sends `B` (BR-73) |
+| `truckProfile.tunnel.{B,C,D,E,notSure}` | ✅ | radio + `checked` state; "Not sure" sends `B` (BR-73) |
 | `truckProfile.summary` | ✅ | |
 | `truckProfile.save` | ✅ | always enabled (AC-8) |
 | `truckProfile.hazmat.division.{1.1…6.2}` | ⏳ | needs PR #28 (BR-59) on `main` |
@@ -55,6 +55,8 @@ Legend: ✅ implemented in E1 · ⏳ not yet, with the reason and the item that 
 |---|---|
 | `truckProfile.back` | Editor back button (48 dp) |
 | `routeError.stillNone` | "Still no safe route with your updated details." (BR-31 §3.3 state) |
+| `routeError.assumption.{i}` | Safety assumption shown on the 422 sheet (ADR-0003 S3: it may be why there is no route) |
+| `route.panel` | Bottom panel; scrolls so the sheet stays reachable at large font sizes |
 | `map.view`, `map.destination` | Map and destination marker |
 | `route.origin`, `route.destination`, `route.submit` | Trip entry ("lat, lng" until destination search lands) |
 | `route.loading`, `route.summary`, `route.safetyAssumption.{i}`, `route.invalid` | Route states |

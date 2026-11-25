@@ -1,3 +1,4 @@
+import type { SafetyAssumption } from '@truckbeez/shared';
 import { useEffect, useRef } from 'react';
 import { AccessibilityInfo, findNodeHandle, StyleSheet, Text, View } from 'react-native';
 import { mapReasons } from '../route/reasons';
@@ -32,6 +33,11 @@ interface Props {
   destinationName: string;
   /** NO_SAFE_ROUTE `details.reasons` (HERE notice titles). */
   reasons?: readonly string[];
+  /**
+   * NO_SAFE_ROUTE `details.safetyAssumptions`. An assumption may be why there is no route,
+   * so it is shown with the reasons, never hidden behind a generic error (ADR-0003 S3).
+   */
+  safetyAssumptions?: readonly SafetyAssumption[];
   /** The "Checked for:" line, from formatProfileChip. */
   profileSummary: string;
   profileHasHazmat: boolean;
@@ -101,6 +107,12 @@ export function RouteErrorSheet(props: Props) {
               <View testID={`routeError.reason.${index}.kind`} accessibilityValue={{ text: row.kind }} style={styles.hidden} />
               <StatusIcon name={REASON_ICON[row.kind]} size={32} />
               <Text style={[styles.reason, { color: palette.text }]}>{row.text}</Text>
+            </View>
+          ))}
+          {(props.safetyAssumptions ?? []).map((assumption, index) => (
+            <View key={assumption.code} testID={`routeError.assumption.${index}`} style={styles.reasonRow}>
+              <StatusIcon name="information-outline" size={32} color={palette.caution} />
+              <Text style={[styles.reason, { color: palette.text }]}>{assumption.message}</Text>
             </View>
           ))}
           {mapped.more > 0 && (

@@ -47,6 +47,33 @@ const DIMENSION_TITLE: Record<DimensionField, string> = {
 };
 
 /**
+ * Inline error or soft warning under a field: icon + text, never colour alone (BR-29 A11Y-5).
+ * Top-level so it isn't remounted on every keystroke (live regions would re-announce).
+ */
+function Message({ field, error, warning }: { field: Field; error?: string; warning?: string }) {
+  const palette = usePalette();
+  if (error) {
+    return (
+      <View style={styles.message} testID={`truckProfile.${field}.error`}>
+        <StatusIcon name="alert-octagon" size={20} color={palette.blocked} />
+        <Text style={[styles.messageText, { color: palette.blocked }]} accessibilityLiveRegion="polite">
+          {error}
+        </Text>
+      </View>
+    );
+  }
+  if (warning) {
+    return (
+      <View style={styles.message} testID={`truckProfile.${field}.warning`}>
+        <StatusIcon name="alert" size={20} color={palette.caution} />
+        <Text style={[styles.messageText, { color: palette.caution }]}>{warning}</Text>
+      </View>
+    );
+  }
+  return null;
+}
+
+/**
  * Truck details editor, parked (BR-29 02a + 02c classes + 02d tunnel). Save is always enabled
  * (AC-8): an invalid Save shows every error inline, moves focus to the first one and announces
  * them. E1 leaves out the review, unsaved and moving-lock flows (§7–8) and the division/PIH
@@ -88,25 +115,6 @@ export function TruckProfileScreen({ initial, onSave, onBack }: Props) {
   const secondary = { color: palette.textSecondary };
   const inputStyle = [styles.input, { backgroundColor: palette.inputBackground, borderColor: palette.inputBorder, color: palette.text }];
 
-  const Message = ({ field }: { field: Field }) => (
-    <>
-      {errors[field] && (
-        <View style={styles.message} testID={`truckProfile.${field}.error`}>
-          <StatusIcon name="alert-octagon" size={20} color={palette.blocked} />
-          <Text style={[styles.messageText, { color: palette.blocked }]} accessibilityLiveRegion="polite">
-            {errors[field]}
-          </Text>
-        </View>
-      )}
-      {!errors[field] && check.warnings[field] && (
-        <View style={styles.message} testID={`truckProfile.${field}.warning`}>
-          <StatusIcon name="alert" size={20} color={palette.caution} />
-          <Text style={[styles.messageText, { color: palette.caution }]}>{check.warnings[field]}</Text>
-        </View>
-      )}
-    </>
-  );
-
   const dimension = (field: DimensionField) => {
     const stored = check.stored[`${field}Cm`];
     const title = DIMENSION_TITLE[field];
@@ -121,6 +129,7 @@ export function TruckProfileScreen({ initial, onSave, onBack }: Props) {
               }}
               testID={`truckProfile.${field}.ft`}
               accessibilityLabel={`${title}, feet, required`}
+              accessibilityHint={errors[field]}
               value={draft[field].ft}
               onChangeText={(t) => setDimension(field, 'ft', t)}
               keyboardType="number-pad"
@@ -145,6 +154,7 @@ export function TruckProfileScreen({ initial, onSave, onBack }: Props) {
               }}
               testID={`truckProfile.${field}.cm`}
               accessibilityLabel={`${title}, centimetres, required`}
+              accessibilityHint={errors[field]}
               value={draft[field].cm}
               onChangeText={(t) => setDimension(field, 'cm', t)}
               keyboardType="decimal-pad"
@@ -176,7 +186,7 @@ export function TruckProfileScreen({ initial, onSave, onBack }: Props) {
               : `Saved as ${groupThousands(stored)} cm (rounded up)`}
           </Text>
         )}
-        <Message field={field} />
+        <Message field={field} error={errors[field]} warning={check.warnings[field]} />
       </View>
     );
   };
@@ -205,8 +215,8 @@ export function TruckProfileScreen({ initial, onSave, onBack }: Props) {
               key={u}
               testID={`truckProfile.units.${u}`}
               accessibilityRole="radio"
-              accessibilityState={{ selected: draft.units === u }}
-              accessibilityLabel={u === 'imperial' ? 'Feet and pounds' : 'Metres and kilograms'}
+              accessibilityState={{ checked: draft.units === u }}
+              accessibilityLabel={u === 'imperial' ? 'ft / lb, feet and pounds' : 'm / kg, metres and kilograms'}
               onPress={() => update({ units: u })}
               style={[styles.segment, { borderColor: palette.brandStrong }, draft.units === u && { backgroundColor: palette.brand }]}
             >
@@ -217,10 +227,10 @@ export function TruckProfileScreen({ initial, onSave, onBack }: Props) {
           ))}
         </View>
 
-        <Text style={[styles.section, secondary]}>SIZE</Text>
+        <Text accessibilityRole="header" style={[styles.section, secondary]}>SIZE</Text>
         {(['height', 'width', 'length'] as const).map(dimension)}
 
-        <Text style={[styles.section, secondary]}>WEIGHT</Text>
+        <Text accessibilityRole="header" style={[styles.section, secondary]}>WEIGHT</Text>
         <View style={styles.field}>
           <Text style={[styles.fieldTitle, text]}>Gross weight *</Text>
           <View style={styles.row}>
@@ -230,6 +240,7 @@ export function TruckProfileScreen({ initial, onSave, onBack }: Props) {
               }}
               testID={draft.units === 'imperial' ? 'truckProfile.weight.lb' : 'truckProfile.weight.kg'}
               accessibilityLabel={`Gross weight, ${draft.units === 'imperial' ? 'pounds' : 'kilograms'}, required`}
+              accessibilityHint={errors.weight}
               value={draft.units === 'imperial' ? draft.weight.lb : draft.weight.kg}
               onChangeText={(t) => update({ weight: { ...draft.weight, [draft.units === 'imperial' ? 'lb' : 'kg']: t } })}
               keyboardType="number-pad"
@@ -242,7 +253,7 @@ export function TruckProfileScreen({ initial, onSave, onBack }: Props) {
               Saved as {groupThousands(check.stored.grossWeightKg)} kg (rounded up)
             </Text>
           )}
-          <Message field="weight" />
+          <Message field="weight" error={errors.weight} warning={check.warnings.weight} />
         </View>
 
         <View style={styles.field}>
@@ -274,10 +285,10 @@ export function TruckProfileScreen({ initial, onSave, onBack }: Props) {
               <Text style={[styles.stepperText, text]}>+</Text>
             </Pressable>
           </View>
-          <Message field="axles" />
+          <Message field="axles" error={errors.axles} warning={check.warnings.axles} />
         </View>
 
-        <Text style={[styles.section, secondary]}>HAZMAT</Text>
+        <Text accessibilityRole="header" style={[styles.section, secondary]}>HAZMAT</Text>
         <View style={[styles.row, styles.switchRow]}>
           <Text style={[styles.fieldTitle, text, styles.flex]}>Carrying hazmat?</Text>
           <Switch
@@ -312,9 +323,9 @@ export function TruckProfileScreen({ initial, onSave, onBack }: Props) {
                 );
               })}
             </View>
-            <Message field="hazmat" />
+            <Message field="hazmat" error={errors.hazmat} warning={check.warnings.hazmat} />
 
-            <Text style={[styles.section, secondary]}>TUNNEL CATEGORY</Text>
+            <Text accessibilityRole="header" style={[styles.section, secondary]}>TUNNEL CATEGORY</Text>
             <View accessibilityRole="radiogroup" accessibilityLabel="Tunnel category">
               {TUNNEL_OPTIONS.map((o) => {
                 const selected = draft.tunnel === o.value;
@@ -323,10 +334,10 @@ export function TruckProfileScreen({ initial, onSave, onBack }: Props) {
                     key={o.value}
                     testID={`truckProfile.tunnel.${o.value}`}
                     accessibilityRole="radio"
-                    accessibilityState={{ selected }}
+                    accessibilityState={{ checked: selected }}
                     accessibilityLabel={`${o.title}. ${o.help}`}
                     onPress={() => update({ tunnel: o.value })}
-                    style={[styles.tunnelRow, { borderColor: selected ? palette.brandStrong : palette.border }]}
+                    style={[styles.tunnelRow, { borderColor: selected ? palette.brandStrong : palette.inputBorder }]}
                   >
                     <Text style={[styles.fieldTitle, text]}>
                       {selected ? '◉ ' : '○ '}
@@ -363,7 +374,7 @@ const styles = StyleSheet.create({
   fieldTitle: { fontSize: 18, fontWeight: '600' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   input: { minHeight: TARGET.primary, borderWidth: 2, borderRadius: 8, paddingHorizontal: 12, fontSize: 22 },
-  short: { width: 88 },
+  short: { minWidth: 88 },
   medium: { minWidth: 160 },
   unit: { fontSize: 18 },
   chips: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
@@ -380,7 +391,7 @@ const styles = StyleSheet.create({
   switchRow: { minHeight: TARGET.primary },
   flex: { flex: 1 },
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
-  tile: { width: 104, minHeight: 80, borderRadius: 8, padding: 8, justifyContent: 'center' },
+  tile: { minWidth: 104, flexGrow: 1, flexBasis: '30%', minHeight: 80, borderRadius: 8, padding: 8, justifyContent: 'center' },
   tileNumber: { fontSize: 22, fontWeight: '700' },
   tileLabel: { fontSize: 14 },
   tunnelRow: { minHeight: TARGET.primary, borderWidth: 2, borderRadius: 8, padding: 12, marginBottom: 8, justifyContent: 'center' },

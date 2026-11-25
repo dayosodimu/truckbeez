@@ -39,7 +39,7 @@ describe('formatProfileChip (BR-29 §9, AC-22/AC-23)', () => {
 
   it('speaks units in words for screen readers', () => {
     expect(formatProfileChip(saved({ ...VAN, hazmat: true, hazmatClasses: [3] })).accessibilityLabel).toBe(
-      'Truck details: 13 feet 6 inches, 80,000 pounds, hazmat class 3. Button. Double-tap to edit.'
+      'Truck details: 13 feet 6 inches, 80,000 pounds, hazmat class 3'
     );
   });
 

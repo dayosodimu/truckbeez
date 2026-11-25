@@ -89,10 +89,26 @@ describe('TruckProfileScreen (BR-29 02a)', () => {
     fireEvent.press(class3);
     expect(screen.getByTestId('truckProfile.hazmat.class.3').props.accessibilityState).toEqual({ checked: true });
     expect(screen.getByTestId('truckProfile.tunnel.notSure').props.accessibilityRole).toBe('radio');
-    expect(screen.getByTestId('truckProfile.tunnel.notSure').props.accessibilityState).toEqual({ selected: true });
+    // Radios report `checked`, which TalkBack and VoiceOver read for the radio role (design review).
+    expect(screen.getByTestId('truckProfile.tunnel.notSure').props.accessibilityState).toEqual({ checked: true });
+    expect(screen.getByTestId('truckProfile.tunnel.B').props.accessibilityState).toEqual({ checked: false });
 
     fireEvent.press(screen.getByTestId('truckProfile.save'));
     expect(onSave.mock.calls[0][1]).toMatchObject({ hazmatClasses: [3], tunnelCategory: 'B' });
+  });
+
+  it('the units radios report checked and their names contain the visible text (WCAG 2.5.3)', () => {
+    render(<TruckProfileScreen onSave={jest.fn()} onBack={jest.fn()} />);
+    expect(screen.getByTestId('truckProfile.units.imperial').props.accessibilityState).toEqual({ checked: true });
+    expect(screen.getByTestId('truckProfile.units.imperial').props.accessibilityLabel).toContain('ft / lb');
+    expect(screen.getByTestId('truckProfile.units.metric').props.accessibilityLabel).toContain('m / kg');
+  });
+
+  it('after an invalid save, a field\'s error is read with it (accessibilityHint)', () => {
+    render(<TruckProfileScreen onSave={jest.fn()} onBack={jest.fn()} />);
+    fireEvent.press(screen.getByTestId('truckProfile.save'));
+    expect(screen.getByTestId('truckProfile.height.ft').props.accessibilityHint).toBe('Enter your height.');
+    expect(screen.getByTestId('truckProfile.weight.lb').props.accessibilityHint).toBe('Enter your gross weight.');
   });
 
   it('A11Y-2: every input has a label with its unit; required fields say "required"', () => {

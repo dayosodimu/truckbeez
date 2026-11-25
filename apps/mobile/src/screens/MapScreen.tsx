@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { LatLng, RouteResponse, SafetyAssumption } from '@truckbeez/shared';
 import { MESSAGES } from '@truckbeez/shared';
 import { planRoute as defaultPlanRoute, type PlanRoute } from '../api';
@@ -141,6 +141,7 @@ export function MapScreen({ planRoute = defaultPlanRoute, onEditProfile, profile
           testID="map.profileChip"
           accessibilityRole="button"
           accessibilityLabel={chip.accessibilityLabel}
+          accessibilityHint="Double-tap to edit your truck details."
           onPress={onEditProfile}
           style={[styles.chip, { backgroundColor: palette.surface, borderColor: saved ? palette.border : palette.caution }]}
         >
@@ -149,12 +150,19 @@ export function MapScreen({ planRoute = defaultPlanRoute, onEditProfile, profile
         </Pressable>
       </View>
 
-      <View style={[styles.panel, { backgroundColor: palette.surface }]}>
+      {/* Scrolls at large font sizes, so the sheet's close and actions stay reachable (A11Y-5). */}
+      <ScrollView
+        testID="route.panel"
+        style={[styles.panel, { backgroundColor: palette.surface }]}
+        contentContainerStyle={styles.panelContent}
+        keyboardShouldPersistTaps="handled"
+      >
         {state.status === 'error' ? (
           <RouteErrorSheet
             variant={state.variant}
             destinationName={trip?.destinationName ?? ''}
             reasons={state.reasons}
+            safetyAssumptions={state.safetyAssumptions}
             profileSummary={chip.text}
             profileHasHazmat={Boolean(saved && saved.hazmatClasses.length > 0)}
             stillNone={state.stillNone}
@@ -186,9 +194,10 @@ export function MapScreen({ planRoute = defaultPlanRoute, onEditProfile, profile
             />
             {!profile ? (
               <>
-                <Text testID="route.needsProfile" style={[styles.notice, { color: palette.caution }]}>
-                  Add your truck details to get a truck-safe route
-                </Text>
+                <View testID="route.needsProfile" style={styles.assumption}>
+                  <StatusIcon name="alert" size={24} color={palette.caution} />
+                  <Text style={[styles.notice, { color: palette.caution }]}>Add your truck details to get a truck-safe route</Text>
+                </View>
                 <Button testID="route.setTruck" label="Set truck details" onPress={onEditProfile} />
               </>
             ) : (
@@ -201,9 +210,10 @@ export function MapScreen({ planRoute = defaultPlanRoute, onEditProfile, profile
               </View>
             )}
             {state.status === 'invalid' && (
-              <Text testID="route.invalid" accessibilityRole="alert" style={[styles.notice, { color: palette.blocked }]}>
-                {state.message}
-              </Text>
+              <View testID="route.invalid" accessibilityRole="alert" style={styles.assumption}>
+                <StatusIcon name="alert-octagon" size={24} color={palette.blocked} />
+                <Text style={[styles.notice, { color: palette.blocked }]}>{state.message}</Text>
+              </View>
             )}
             {route && (
               <View testID="route.summary" accessibilityLiveRegion="polite">
@@ -221,7 +231,7 @@ export function MapScreen({ planRoute = defaultPlanRoute, onEditProfile, profile
             )}
           </>
         )}
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -239,7 +249,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   chipText: { fontSize: 16, fontWeight: '600' },
-  panel: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, gap: 8, borderTopLeftRadius: 16, borderTopRightRadius: 16 },
+  panel: { position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '75%', borderTopLeftRadius: 16, borderTopRightRadius: 16 },
+  panelContent: { padding: 16, gap: 8 },
   input: { minHeight: TARGET.primary, borderWidth: 2, borderRadius: 8, paddingHorizontal: 12, fontSize: 18 },
   notice: { fontSize: 16, flexShrink: 1 },
   loading: { flexDirection: 'row', alignItems: 'center', gap: 8 },

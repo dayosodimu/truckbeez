@@ -19,6 +19,12 @@ describe('NO_SAFE_ROUTE reasons → driver words (BR-31 §5.2)', () => {
     expect(rows.map((r) => r.kind)).toEqual(['hazmat', 'tunnel', 'height']);
   });
 
+  it('"bridge weight limit" is a weight limit, not a low bridge', () => {
+    expect(mapReasons(['Bridge weight limit exceeded'], false).rows.map((r) => r.kind)).toEqual(['weight']);
+    expect(mapReasons(['Low bridge'], false).rows.map((r) => r.kind)).toEqual(['height']);
+    expect(mapReasons(['Bridge axle limit'], false).rows.map((r) => r.kind)).toEqual(['weight']);
+  });
+
   it('caps at three rows and counts the rest', () => {
     const result = mapReasons(['hazmat', 'tunnel', 'height', 'weight', 'width'], false);
     expect(result.rows).toHaveLength(3);
