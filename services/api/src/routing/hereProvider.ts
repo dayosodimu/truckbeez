@@ -1,4 +1,4 @@
-import type { RouteInstruction, RouteRequest } from "../contracts/route.js";
+import type { RouteInstruction, RouteRequest } from "@truckbeez/shared";
 import { decodeFlexiblePolyline } from "./flexiblePolyline.js";
 import { toHereHazardousGoods } from "./hazmat.js";
 import {

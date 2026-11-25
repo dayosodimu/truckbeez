@@ -1,4 +1,4 @@
-import type { LatLng } from "../contracts/route.js";
+import type { LatLng } from "@truckbeez/shared";
 
 /**
  * Decoder for HERE's Flexible Polyline format (the `polyline` field in Routing v8 responses).

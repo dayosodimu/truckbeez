@@ -1,4 +1,4 @@
-import type { RouteRequest, RouteResponse } from "../contracts/route.js";
+import type { RouteRequest, RouteResponse } from "@truckbeez/shared";
 
 /** What an engine returns. The router adds `safetyAssumptions`, so every provider reports them the same way. */
 export type ProviderRoute = Omit<RouteResponse, "safetyAssumptions">;

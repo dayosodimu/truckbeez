@@ -4,7 +4,7 @@ import {
   type HazmatDivision,
   type SafetyAssumption,
   type TruckProfile,
-} from "../contracts/route.js";
+} from "@truckbeez/shared";
 
 /** Every value HERE Routing v8 accepts for `vehicle[shippedHazardousGoods]`. */
 export const HERE_HAZARDOUS_GOODS = [

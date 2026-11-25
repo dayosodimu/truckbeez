@@ -1,0 +1,28 @@
+# Build context is the repo root (ADR-0003 step B). Send only what images need.
+**/node_modules
+**/dist
+**/reports
+**/coverage
+**/*.log
+.git
+.github
+.claude
+.githooks
+docs
+deploy
+scripts
+README.md
+CLAUDE.md
+
+# Secrets never enter a build context (docs/secrets.md)
+**/.env
+**/.env.*
+**/*.env
+**/*.env.*
+**/*.tfvars
+**/*.tfstate*
+
+# The mobile app's sources aren't needed by any server image; its manifest is,
+# because npm ci checks every workspace in the lockfile.
+apps/*
+!apps/*/package.json
