@@ -82,7 +82,6 @@ describe("BR-64 truck profile boundaries (UC-03 inputs)", () => {
     ["axleCount as a fraction", { axleCount: 5.5 }],
     ["heightM as a string", { heightM: "4.1" }],
     ["heightM as null", { heightM: null }],
-    ["grossWeightKg as Infinity (JSON null)", { grossWeightKg: Number.POSITIVE_INFINITY }],
     ["an unknown field", { trailerCount: 1 }],
     ["the old imperial field", { heightFt: 13.5 }],
   ])("@routing-safety rejects %s", async (_name, patch) => {
@@ -92,12 +91,23 @@ describe("BR-64 truck profile boundaries (UC-03 inputs)", () => {
     expect(here.fetchFn).not.toHaveBeenCalled();
   });
 
+  it("@routing-safety rejects a raw JSON number that overflows to Infinity (1e999)", async () => {
+    const here = appWithHere();
+    const body = JSON.stringify(routeRequest()).replace('"grossWeightKg":36287.39', '"grossWeightKg":1e999');
+    expect(body).toContain("1e999");
+    const res = await request(here.app).post("/api/route").set("Content-Type", "application/json").send(body);
+    expect(res.status).toBe(400);
+    expect(here.fetchFn).not.toHaveBeenCalled();
+  });
+
   it.each(["heightM", "widthM", "lengthM", "grossWeightKg", "axleCount"] as const)(
     "@routing-safety rejects a profile with no %s (missing is never 'small')",
     async (field) => {
       const { [field]: _omitted, ...truck } = DRY_VAN;
-      const res = await post(routeRequest(truck as TruckProfile));
+      const here = appWithHere();
+      const res = await post(routeRequest(truck as TruckProfile), here);
       expect(res.status).toBe(400);
+      expect(here.fetchFn).not.toHaveBeenCalled();
     }
   );
 
@@ -194,8 +204,16 @@ describe("BR-64 success contract (UC-03)", () => {
   });
 
   it("never echoes the truck profile or the HERE key back to the client", async () => {
-    const res = await post({ origin: NEWARK, destination: PHILADELPHIA, truck: DRY_VAN });
-    const text = JSON.stringify(res.body);
+    const key = fakeHereKey();
+    const fetchFn = vi.fn(async () => jsonResponse(compliantRoute()));
+    const app = createApp(config, {
+      routingProvider: createHereProvider({ apiKey: key, fetchFn: fetchFn as unknown as typeof fetch }),
+      logger: quietLogger(),
+    });
+    const res = await request(app).post("/api/route").send({ origin: NEWARK, destination: PHILADELPHIA, truck: DRY_VAN });
+    expect(res.status).toBe(200);
+    const text = JSON.stringify(res.body) + JSON.stringify(res.headers);
+    expect(text).not.toContain(key.value);
     expect(text).not.toMatch(/apiKey|heightM|grossWeightKg/);
   });
 });
