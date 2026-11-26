@@ -1,4 +1,5 @@
 import * as Location from 'expo-location';
+import { Linking } from 'react-native';
 import { fixFromPosition, type PrevFix } from './fixFromPosition';
 import type { PermissionResult, SpeedSource } from './MotionContext';
 
@@ -19,9 +20,11 @@ function precise(p: Location.LocationPermissionResponse): PermissionResult {
  * with turn-by-turn navigation (ADR-0002) and its own review.
  */
 export const locationSpeedSource: SpeedSource = {
-  async start(onFix) {
+  async start(onFix, options) {
     const current = await Location.getForegroundPermissionsAsync();
-    const permission = precise(current.granted ? current : await Location.requestForegroundPermissionsAsync());
+    // On app launch the OS dialog is shown; a re-check when the app returns from Settings is silent.
+    const asked = current.granted || options?.prompt === false ? current : await Location.requestForegroundPermissionsAsync();
+    const permission = precise(asked);
     if (permission !== 'granted') return { permission, stop: () => {} };
     let prev: PrevFix | undefined;
     const subscription = await Location.watchPositionAsync(
@@ -36,6 +39,9 @@ export const locationSpeedSource: SpeedSource = {
     return { permission, stop: () => subscription.remove() };
   },
   async requestPermission() {
-    return precise(await Location.requestForegroundPermissionsAsync());
+    const result = await Location.requestForegroundPermissionsAsync();
+    // The OS won't show the dialog again (e.g. iOS after a denial): send the driver to Settings.
+    if (!result.granted && !result.canAskAgain) await Linking.openSettings().catch(() => undefined);
+    return precise(result);
   },
 };

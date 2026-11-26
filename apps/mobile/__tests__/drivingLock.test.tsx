@@ -4,7 +4,7 @@ import { AppShell } from '../App';
 import type { PlanRouteResult } from '../src/api';
 import { checkDraft, EMPTY_DRAFT, type ProfileDraft } from '../src/profile/draft';
 import type { SavedProfile } from '../src/profile/format';
-import { NO_SAFE_MOVING_MAX_RETRIES, NO_SAFE_MOVING_RETRY_MS, RETRY_DELAYS_MS, spokenDestination } from '../src/screens/MapScreen';
+import { NO_SAFE_MOVING_RETRY_MS, RETRY_DELAYS_MS, spokenDestination } from '../src/screens/MapScreen';
 import { TruckProfileProvider } from '../src/state/TruckProfileContext';
 import { VOICE } from '../src/voice/lines';
 import { controlledMotion, fakeSpeaker, Providers } from '../test-support/harness';
@@ -99,6 +99,33 @@ describe('NFR-10 / TB-PRF-06 moving lock (BR-29 §7, 02g)', () => {
     expect(screen.queryByTestId('truckProfile.draftBanner')).toBeNull();
   });
 
+  it('@driver-safety metric inputs lock too, and the locked form is hidden from TalkBack', () => {
+    const { motion } = setup();
+    fireEvent.press(screen.getByTestId('map.profileChip'));
+    fireEvent.press(screen.getByTestId('truckProfile.units.metric'));
+    motion.set('moving');
+    const hidden = { includeHiddenElements: true };
+    for (const id of ['truckProfile.height.cm', 'truckProfile.width.cm', 'truckProfile.length.cm', 'truckProfile.weight.kg']) {
+      expect(screen.getByTestId(id, hidden).props.editable).toBe(false);
+    }
+    expect(screen.getByTestId('truckProfile.screen', hidden).props.importantForAccessibility).toBe('no-hide-descendants');
+  });
+
+  it('with no truck details saved, the entry lock says so instead of "Your current details: Set truck details"', () => {
+    const motion = controlledMotion('moving');
+    const voice = fakeSpeaker();
+    render(
+      <Providers motion={motion} speaker={voice.speaker}>
+        <TruckProfileProvider>
+          <AppShell planRoute={jest.fn()} />
+        </TruckProfileProvider>
+      </Providers>
+    );
+    fireEvent.press(screen.getByTestId('map.profileChip'));
+    expect(screen.getByTestId('truckProfile.movingLock')).toHaveTextContent('No truck details yet.', { exact: false });
+    expect(screen.getByTestId('truckProfile.movingLock')).not.toHaveTextContent('Set truck details', { exact: false });
+  });
+
   it('TC-M-011 @driver-safety the trip entry fields do not exist while moving; a glance line takes their place', () => {
     const { motion } = setup();
     expect(screen.getByTestId('route.origin')).toBeTruthy();
@@ -176,12 +203,21 @@ describe('BR-31 in-motion route errors (04c / 04d)', () => {
     const { motion, voice, planRoute } = setup(Array.from({ length: 10 }, () => NO_SAFE));
     await planTrip();
     motion.set('moving');
-    for (let i = 1; i <= NO_SAFE_MOVING_MAX_RETRIES + 2; i += 1) {
+    // Literal values from BR-31 AC-8 (60 s ± 5 s, max 5), not the constants under test.
+    await act(async () => {
+      jest.advanceTimersByTime(55_000);
+    });
+    expect(planRoute).toHaveBeenCalledTimes(1); // not before 55 s
+    await act(async () => {
+      jest.advanceTimersByTime(10_000);
+    });
+    expect(planRoute).toHaveBeenCalledTimes(2); // by 65 s
+    for (let i = 0; i < 10; i += 1) {
       await act(async () => {
-        jest.advanceTimersByTime(NO_SAFE_MOVING_RETRY_MS);
+        jest.advanceTimersByTime(60_000);
       });
     }
-    expect(planRoute).toHaveBeenCalledTimes(1 + NO_SAFE_MOVING_MAX_RETRIES);
+    expect(planRoute).toHaveBeenCalledTimes(1 + 5);
     for (const call of planRoute.mock.calls) expect(call[0].destination).toEqual(planRoute.mock.calls[0]![0].destination);
     expect(voice.said().filter((l) => l === VOICE.stillNoneMoving)).toHaveLength(1);
     expect(voice.said().filter((l) => l.startsWith('No truck-safe route from here'))).toHaveLength(0); // retries are silent
@@ -208,6 +244,88 @@ describe('BR-31 in-motion route errors (04c / 04d)', () => {
     expect(voice.said()).toContain('Truck-safe route found. Continue on I-95 South.');
     expect(screen.getByTestId('map.routeLine')).toBeTruthy();
     expect(screen.queryByTestId('routeError.banner')).toBeNull();
+  });
+
+  it('QA P1: after "Choose another destination", starting to move announces and retries nothing', async () => {
+    const { motion, voice, planRoute } = setup([NO_SAFE, NO_SAFE]);
+    await planTrip();
+    const spoken = voice.said().length;
+    fireEvent.press(screen.getByTestId('routeError.action.otherDestination'));
+    motion.set('moving');
+    await act(async () => {
+      jest.advanceTimersByTime(5 * 60_000);
+    });
+    expect(screen.queryByTestId('routeError.banner')).toBeNull();
+    expect(voice.said()).toHaveLength(spoken);
+    expect(planRoute).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    [{ kind: 'unavailable', status: 502 } as PlanRouteResult, 'unavailable', VOICE.unavailableMoving],
+    [{ kind: 'offline' } as PlanRouteResult, 'offline', VOICE.offlineMoving],
+  ])('QA P2: moving with the %#-th sheet open speaks its line once and Repeat replays it', async (result, variant, line) => {
+    const { motion, voice } = setup([result, result, result]);
+    await planTrip();
+    expect(voice.said()).toEqual([]); // parked 502/offline: the sheet says it
+    motion.set('moving');
+    expect(screen.getByTestId('routeError.banner.variant').props.accessibilityValue).toEqual({ text: variant });
+    expect(voice.said()).toEqual([line]);
+    fireEvent.press(screen.getByTestId('routeError.banner.repeat'));
+    expect(voice.said()).toEqual([line, line]);
+  });
+
+  it('QA P2: starting to move while a request is in flight gives one voice line and exactly 5 moving retries', async () => {
+    let release!: (r: PlanRouteResult) => void;
+    const answers: PlanRouteResult[] = [NO_SAFE];
+    const { motion, voice, planRoute } = setup();
+    planRoute.mockImplementation(async () => {
+      if (planRoute.mock.calls.length === 2) return new Promise<PlanRouteResult>((res) => (release = res));
+      return answers.shift() ?? NO_SAFE;
+    });
+    await planTrip(); // 422 parked: 1 line
+    // Save new details: request #2 in flight; then the truck starts moving before it answers.
+    fireEvent.press(screen.getByTestId('routeError.action.checkTruck'));
+    fireEvent.changeText(screen.getByTestId('truckProfile.height.ft'), '14');
+    await act(async () => fireEvent.press(screen.getByTestId('truckProfile.save')));
+    motion.set('moving');
+    await act(async () => release(NO_SAFE));
+    const movingLines = voice.said().filter((l) => l.startsWith('No truck-safe route from here'));
+    expect(movingLines).toHaveLength(1);
+    for (let i = 0; i < 10; i += 1) {
+      await act(async () => {
+        jest.advanceTimersByTime(60_000);
+      });
+    }
+    expect(planRoute).toHaveBeenCalledTimes(2 + 5);
+  });
+
+  it('QA P3: an answer that arrives after the screen is gone schedules nothing', async () => {
+    let release!: (r: PlanRouteResult) => void;
+    const motion = controlledMotion('parked');
+    const voice = fakeSpeaker();
+    const planRoute = jest.fn(() => new Promise<PlanRouteResult>((res) => (release = res)));
+    const view = render(
+      <Providers motion={motion} speaker={voice.speaker}>
+        <TruckProfileProvider initial={initialProfile()}>
+          <AppShell planRoute={planRoute} />
+        </TruckProfileProvider>
+      </Providers>
+    );
+    await planTrip();
+    view.unmount();
+    // Count only timers the app schedules (React's own scheduler ticks aren't the app's).
+    const realSetTimeout = globalThis.setTimeout;
+    const scheduled: (number | undefined)[] = [];
+    (globalThis as { setTimeout: unknown }).setTimeout = ((fn: () => void, ms?: number) => {
+      scheduled.push(ms);
+      return realSetTimeout(fn, ms);
+    }) as typeof setTimeout;
+    try {
+      await act(async () => release({ kind: 'unavailable', status: 502 }));
+    } finally {
+      globalThis.setTimeout = realSetTimeout;
+    }
+    expect(scheduled).toEqual([]); // with the guard removed, the 15 s retry is scheduled here
   });
 
   it('04d: moving and routing down shows the caution banner and speaks the 502 line; recovery says "Routing is back"', async () => {

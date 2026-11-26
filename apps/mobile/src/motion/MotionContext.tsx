@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { AppState } from 'react-native';
 import { INITIAL_MOTION, MOTION, onFix, onTick, type MotionModel, type MotionState, type SpeedFix } from './motion';
 
 /**
@@ -11,7 +12,7 @@ export type PermissionResult = 'granted' | 'denied' | 'approximate';
 
 export interface SpeedSource {
   /** Ask for permission and start fixes (only when precise location is granted). */
-  start(onFix: (fix: SpeedFix) => void): Promise<{ permission: PermissionResult; stop: () => void }>;
+  start(onFix: (fix: SpeedFix) => void, options?: { prompt?: boolean }): Promise<{ permission: PermissionResult; stop: () => void }>;
   /** Ask the OS for permission again (the "Allow location" button). */
   requestPermission(): Promise<PermissionResult>;
 }
@@ -40,14 +41,20 @@ export function MotionProvider({ source, children, now = Date.now }: Props) {
   const [model, setModel] = useState<MotionModel>(INITIAL_MOTION);
   const [permission, setPermission] = useState<LocationPermission>('unknown');
   const [attempt, setAttempt] = useState(0);
+  /** false after the first start: later re-checks (back from Settings) don't prompt again. */
+  const prompt = useRef(true);
+  const permissionRef = useRef<LocationPermission>('unknown');
+  permissionRef.current = permission;
   const nowRef = useRef(now);
   nowRef.current = now;
 
   useEffect(() => {
     let stop: (() => void) | undefined;
     let cancelled = false;
+    const promptThisTime = prompt.current;
+    prompt.current = false;
     void source
-      .start((fix) => setModel((m) => onFix(m, fix)))
+      .start((fix) => setModel((m) => onFix(m, fix)), { prompt: promptThisTime })
       .then((result) => {
         if (cancelled) {
           result.stop();
@@ -64,6 +71,14 @@ export function MotionProvider({ source, children, now = Date.now }: Props) {
       stop?.();
     };
   }, [source, attempt]);
+
+  // Permission granted in Settings is noticed when the app comes back (QA P2).
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active' && permissionRef.current !== 'granted') setAttempt((a) => a + 1);
+    });
+    return () => sub?.remove();
+  }, []);
 
   const value = useMemo<MotionValue>(
     () => ({

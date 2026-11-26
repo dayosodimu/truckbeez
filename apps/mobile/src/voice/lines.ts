@@ -11,6 +11,8 @@ export const VOICE = {
     `No truck-safe route from here. ${trimDot(topReason)}. Keep to your current road and pull over when it's safe.`,
   stillNoneMoving: "Still no truck-safe route. Pull over when it's safe to check your details.",
   unavailableMoving: "Routing is down right now. I'll keep trying. I won't give you a route I can't check.",
+  /** Not in BR-31 §6 (it has no offline voice line): proposed copy, pending design review. */
+  offlineMoving: "No connection right now. I'll keep trying. I won't give you a route I can't check.",
   routeFound: (firstInstruction?: string) => `Truck-safe route found.${firstInstruction ? ` ${trimDot(firstInstruction)}.` : ''}`,
   routingBack: 'Routing is back. Truck-safe route found.',
   parkToEdit: "You can change truck details when you're parked.",

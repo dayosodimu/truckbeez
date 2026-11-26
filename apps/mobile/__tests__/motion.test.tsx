@@ -56,17 +56,49 @@ describe('NFR-10 / TB-PRF-06 driving state (BR-29 §7: moving > 8 km/h for 3 s, 
 
   it('@driver-safety no GPS fix for 5 s counts as moving; less than 5 s keeps parked', () => {
     const { model, t } = drive(INITIAL_MOTION, 0, 5, 0);
-    expect(onTick(model, t + MOTION.noFixAfterMs - 1).state).toBe('parked');
-    expect(onTick(model, t + MOTION.noFixAfterMs).state).toBe('moving');
+    // Literal 5000 ms (BR-29 §7), not the constant under test (QA review).
+    expect(onTick(model, t + 4999).state).toBe('parked');
+    expect(onTick(model, t + 5000).state).toBe('moving');
+    expect(MOTION).toMatchObject({ movingKmh: 8, movingHoldMs: 3000, parkedKmh: 3, parkedHoldMs: 5000, noFixAfterMs: 5000 });
     expect(onTick(INITIAL_MOTION, 0).state).toBe('moving'); // never had a fix
   });
 });
 
+function Probe() {
+  const { state, permission } = useMotion();
+  return <Text testID="probe">{`${state}/${permission}`}</Text>;
+}
+
 describe('MotionProvider', () => {
-  function Probe() {
-    const { state, permission } = useMotion();
-    return <Text testID="probe">{`${state}/${permission}`}</Text>;
-  }
+  it('re-checks permission silently when the app comes back to the foreground (granted in Settings)', async () => {
+    const { AppState } = require('react-native');
+    let listener: ((s: string) => void) | undefined;
+    const spy = jest.spyOn(AppState, 'addEventListener').mockImplementation((_e: unknown, cb: unknown) => {
+      listener = cb as (s: string) => void;
+      return { remove: jest.fn() };
+    });
+    const starts: ({ prompt?: boolean } | undefined)[] = [];
+    let permission: 'denied' | 'granted' = 'denied';
+    const source: SpeedSource = {
+      start: async (_onFix, options) => {
+        starts.push(options);
+        return { permission, stop: jest.fn() };
+      },
+      requestPermission: async () => 'denied',
+    };
+    render(
+      <MotionProvider source={source}>
+        <Probe />
+      </MotionProvider>
+    );
+    await act(async () => {});
+    expect(screen.getByTestId('probe')).toHaveTextContent('moving/denied');
+    permission = 'granted'; // the driver allows location in Settings, then returns
+    await act(async () => listener?.('active'));
+    expect(starts).toEqual([{ prompt: true }, { prompt: false }]); // the second check never prompts
+    expect(screen.getByTestId('probe')).toHaveTextContent('moving/granted');
+    spy.mockRestore();
+  });
 
   it('location denied: stays moving (no evidence) and reports the permission', async () => {
     const source: SpeedSource = { start: async () => ({ permission: 'denied', stop: jest.fn() }), requestPermission: async () => 'denied' };
@@ -101,7 +133,7 @@ describe('MotionProvider', () => {
       for (let i = 0; i <= 5; i += 1) act(() => push({ speedMps: 0, at: t0 + i * 1000 }));
       expect(screen.getByTestId('probe')).toHaveTextContent('parked/granted');
       // Signal lost: the 1 s tick turns it back to moving after 5 s without a fix.
-      act(() => jest.setSystemTime(t0 + 5000 + MOTION.noFixAfterMs));
+      act(() => jest.setSystemTime(t0 + 5000 + 5000));
       act(() => jest.advanceTimersByTime(1000));
       expect(screen.getByTestId('probe')).toHaveTextContent('moving/granted');
       unmount();

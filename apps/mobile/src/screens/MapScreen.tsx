@@ -68,6 +68,8 @@ export function MapScreen({ planRoute = defaultPlanRoute, onEditProfile, profile
   const noSafeMovingRetries = useRef(0);
   const lastSpokenReason = useRef(GENERIC_SPOKEN_REASON);
   const tripRef = useRef<Trip | undefined>(undefined);
+  /** A request is waiting for its answer; the motion effect leaves voice and retries to it. */
+  const inFlight = useRef(false);
   const [originText, setOriginText] = useState('');
   const [destinationText, setDestinationText] = useState('');
   const [trip, setTrip] = useState<Trip>();
@@ -96,8 +98,10 @@ export function MapScreen({ planRoute = defaultPlanRoute, onEditProfile, profile
       const id = ++latestRequest.current;
       if (options.isRetry) setRetrying(true);
       else setState({ status: 'loading' });
+      inFlight.current = true;
       const result = await planRoute({ origin: target.origin, destination: target.destination, truck: profile });
       if (id !== latestRequest.current) return; // superseded: ignore, don't draw, don't retry
+      inFlight.current = false;
       setRetrying(false);
 
       if (result.kind === 'route') {
@@ -132,7 +136,9 @@ export function MapScreen({ planRoute = defaultPlanRoute, onEditProfile, profile
               ? VOICE.noSafeMoving(spokenReason)
               : VOICE.noSafeParked(spokenDestination(target.destinationName), spokenReason)
             : movingRef.current
-              ? VOICE.unavailableMoving
+              ? variant === 'offline'
+                ? VOICE.offlineMoving
+                : VOICE.unavailableMoving
               : undefined; // parked 502/offline: the sheet says it; no line in BR-31 §6
         lastLine.current = line;
         if (line) {
@@ -155,6 +161,7 @@ export function MapScreen({ planRoute = defaultPlanRoute, onEditProfile, profile
       } else if (movingRef.current) {
         if (noSafeMovingRetries.current < NO_SAFE_MOVING_MAX_RETRIES) {
           noSafeMovingRetries.current += 1;
+          clearRetry();
           retryTimer.current = setTimeout(() => void request(target, { isRetry: true }), NO_SAFE_MOVING_RETRY_MS);
         } else if (noSafeMovingRetries.current === NO_SAFE_MOVING_MAX_RETRIES) {
           noSafeMovingRetries.current += 1; // spoken once only
@@ -173,14 +180,21 @@ export function MapScreen({ planRoute = defaultPlanRoute, onEditProfile, profile
       Keyboard.dismiss();
       // Started moving with the no-safe-route sheet open: it becomes the banner (BR-31 §3.3),
       // the voice line repeats only if the last one was >= 60 s ago, and moving retries start.
-      if (lastVariant.current === 'noSafeRoute' && tripRef.current) {
-        const line = VOICE.noSafeMoving(lastSpokenReason.current);
+      // A request in flight will speak and schedule for itself when its answer arrives (QA P2).
+      if (lastVariant.current && tripRef.current && !inFlight.current) {
+        const line =
+          lastVariant.current === 'noSafeRoute'
+            ? VOICE.noSafeMoving(lastSpokenReason.current)
+            : lastVariant.current === 'offline'
+              ? VOICE.offlineMoving
+              : VOICE.unavailableMoving;
         lastLine.current = line;
         if (Date.now() - lastSpokenAt.current >= VOICE_REPEAT_GAP_MS) {
           speaker.say(line, { critical: true });
           lastSpokenAt.current = Date.now();
         }
-        if (!retryTimer.current && noSafeMovingRetries.current < NO_SAFE_MOVING_MAX_RETRIES) {
+        // 502/offline keep their own backoff timer; a 422 starts the moving retries.
+        if (lastVariant.current === 'noSafeRoute' && !retryTimer.current && noSafeMovingRetries.current < NO_SAFE_MOVING_MAX_RETRIES) {
           noSafeMovingRetries.current += 1;
           const target = tripRef.current;
           retryTimer.current = setTimeout(() => void request(target, { isRetry: true }), NO_SAFE_MOVING_RETRY_MS);
@@ -200,7 +214,13 @@ export function MapScreen({ planRoute = defaultPlanRoute, onEditProfile, profile
     }
   };
 
-  useEffect(() => clearRetry, []);
+  useEffect(
+    () => () => {
+      clearRetry();
+      latestRequest.current += 1; // an answer arriving after unmount schedules nothing (QA P3)
+    },
+    []
+  );
 
   // After "Check truck details" → save: re-request the same destination with the new profile.
   useEffect(() => {
@@ -226,10 +246,18 @@ export function MapScreen({ planRoute = defaultPlanRoute, onEditProfile, profile
     void request(next);
   };
 
+  /** "Choose another destination" / close: the dismissed trip is gone, so nothing announces or retries it (QA P1). */
   const closeSheet = () => {
     clearRetry();
     latestRequest.current += 1; // an answer still in flight for this trip is now stale
+    inFlight.current = false;
     setRetrying(false);
+    lastVariant.current = undefined;
+    lastLine.current = undefined;
+    noSafeMovingRetries.current = 0;
+    retryAttempt.current = 0;
+    tripRef.current = undefined;
+    setTrip(undefined);
     setState({ status: 'idle' });
   };
 

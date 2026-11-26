@@ -7,6 +7,7 @@ import { STATUS_ICON, StatusIcon } from './StatusIcon';
 export const BANNER_COPY: Record<RouteErrorVariant, { title: string; sub: string }> = {
   noSafeRoute: { title: 'No safe route from here', sub: 'Pull over when safe' },
   unavailable: { title: 'Routing is down', sub: 'Keep to your road. Still trying.' },
+  // BR-31 §7 only says "offline copy"; this mirrors 04d (proposed, pending design review).
   offline: { title: 'No connection', sub: 'Keep to your road. Still trying.' },
 };
 

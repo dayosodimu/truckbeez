@@ -35,7 +35,7 @@ export function AppShell({ planRoute }: ShellProps) {
   const [entryLock, setEntryLock] = useState(false);
   const [draft, setDraft] = useState<ProfileDraft>();
   const [profileVersion, setProfileVersion] = useState(0);
-  const currentDetails = formatProfileChip(saved).text;
+  const currentDetails = saved ? formatProfileChip(saved).text : undefined;
 
   const openEditor = () => {
     if (moving) {
@@ -48,7 +48,9 @@ export function AppShell({ planRoute }: ShellProps) {
 
   return (
     <View style={styles.root}>
-      <MapScreen planRoute={planRoute} onEditProfile={openEditor} profileVersion={profileVersion} />
+      <View style={styles.root} importantForAccessibility={entryLock || editing ? 'no-hide-descendants' : 'auto'}>
+        <MapScreen planRoute={planRoute} onEditProfile={openEditor} profileVersion={profileVersion} />
+      </View>
       {editing && (
         <View style={StyleSheet.absoluteFill}>
           <TruckProfileScreen

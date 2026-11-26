@@ -5,8 +5,8 @@ import { StatusIcon } from './StatusIcon';
 interface Props {
   /** `entry`: tried to open the editor while moving. `paused`: started moving while editing. */
   reason: 'entry' | 'paused';
-  /** The current (saved) details, from formatProfileChip. */
-  currentDetails: string;
+  /** The current (saved) details, from formatProfileChip; undefined when none are saved yet. */
+  currentDetails?: string;
   onOk: () => void;
 }
 
@@ -31,7 +31,7 @@ export function MovingLockOverlay({ reason, currentDetails, onOk }: Props) {
           {LOCK_COPY[reason].title}
         </Text>
         <Text style={[styles.sub, { color: palette.text }]}>
-          {reason === 'paused' ? LOCK_COPY.paused.sub : `Your current details: ${currentDetails}`}
+          {reason === 'paused' ? LOCK_COPY.paused.sub : currentDetails ? `Your current details: ${currentDetails}` : 'No truck details yet.'}
         </Text>
         <Pressable
           testID="truckProfile.movingLock.ok"

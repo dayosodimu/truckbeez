@@ -222,7 +222,12 @@ export function TruckProfileScreen({ initial, onSave, onBack, restoredDraft, loc
     : undefined;
 
   return (
-    <View testID="truckProfile.screen" style={[styles.screen, { backgroundColor: palette.background }]}>
+    <View
+      testID="truckProfile.screen"
+      // Android: hide the locked form from TalkBack (accessibilityViewIsModal on the overlay is iOS-only).
+      importantForAccessibility={locked ? 'no-hide-descendants' : 'auto'}
+      style={[styles.screen, { backgroundColor: palette.background }]}
+    >
       <View style={styles.header}>
         <IconButton testID="truckProfile.back" label="Back" glyph="←" onPress={onBack} />
         <Text accessibilityRole="header" style={[styles.headerTitle, text]}>
