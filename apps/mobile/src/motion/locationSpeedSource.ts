@@ -1,5 +1,17 @@
 import * as Location from 'expo-location';
-import type { SpeedSource } from './MotionContext';
+import { fixFromPosition, type PrevFix } from './fixFromPosition';
+import type { PermissionResult, SpeedSource } from './MotionContext';
+
+/**
+ * Precise, foreground-only permission. Approximate location can't tell parked from moving.
+ * Android reports `coarse`. iOS doesn't expose "reduced accuracy" here, but its fixes are
+ * kilometres wide, so fixFromPosition's accuracy limit treats them as no fix (stays locked).
+ */
+function precise(p: Location.LocationPermissionResponse): PermissionResult {
+  if (!p.granted) return 'denied';
+  if (p.android?.accuracy === 'coarse') return 'approximate';
+  return 'granted';
+}
 
 /**
  * Foreground location, used only to tell moving from parked (BR-78). Fixes stay on the device:
@@ -8,18 +20,22 @@ import type { SpeedSource } from './MotionContext';
  */
 export const locationSpeedSource: SpeedSource = {
   async start(onFix) {
-    const { granted } = await Location.getForegroundPermissionsAsync().then(async (current) =>
-      current.granted ? current : Location.requestForegroundPermissionsAsync()
-    );
-    if (!granted) return { granted: false, stop: () => {} };
+    const current = await Location.getForegroundPermissionsAsync();
+    const permission = precise(current.granted ? current : await Location.requestForegroundPermissionsAsync());
+    if (permission !== 'granted') return { permission, stop: () => {} };
+    let prev: PrevFix | undefined;
     const subscription = await Location.watchPositionAsync(
-      { accuracy: Location.Accuracy.Balanced, timeInterval: 1_000, distanceInterval: 0 },
-      (position) => onFix({ speedMps: position.coords.speed, at: position.timestamp })
+      // High accuracy: balanced/network fixes often carry no speed, which Android reports as 0.
+      { accuracy: Location.Accuracy.High, timeInterval: 1_000, distanceInterval: 0 },
+      (position) => {
+        const result = fixFromPosition(position, prev);
+        prev = result.prev;
+        onFix(result.fix);
+      }
     );
-    return { granted: true, stop: () => subscription.remove() };
+    return { permission, stop: () => subscription.remove() };
   },
   async requestPermission() {
-    const { granted } = await Location.requestForegroundPermissionsAsync();
-    return granted;
+    return precise(await Location.requestForegroundPermissionsAsync());
   },
 };

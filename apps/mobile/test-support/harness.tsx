@@ -15,7 +15,7 @@ export function fakeSpeaker() {
  * Motion the test controls: `motion.set('moving')`. Starts parked unless told otherwise, so
  * tests that aren't about driving keep the parked flow.
  */
-export function controlledMotion(initial: MotionState = 'parked', permission: 'granted' | 'denied' = 'granted') {
+export function controlledMotion(initial: MotionState = 'parked', permission: 'granted' | 'denied' | 'approximate' = 'granted') {
   let setter: ((s: MotionState) => void) | undefined;
   const requestPermission = jest.fn();
   function Provider({ children }: { children: ReactNode }) {

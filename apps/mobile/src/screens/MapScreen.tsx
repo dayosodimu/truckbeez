@@ -28,7 +28,7 @@ export const NO_SAFE_MOVING_MAX_RETRIES = 5;
 const VOICE_REPEAT_GAP_MS = 60_000;
 
 /** Coordinates typed as a destination are not spoken: "your destination" is. */
-const spokenDestination = (name: string) => (/^-?\d/.test(name.trim()) ? 'your destination' : name);
+export const spokenDestination = (name: string) => (/\d{1,3}\.\d+|\d+\s*°|[NS]\s*\d+.*[EW]\s*\d+/i.test(name) ? 'your destination' : name);
 
 type RouteState =
   | { status: 'idle' }
@@ -282,13 +282,17 @@ export function MapScreen({ planRoute = defaultPlanRoute, onEditProfile, profile
           />
         ) : (
           <>
-            {moving && permission === 'denied' ? (
+            {moving && (permission === 'denied' || permission === 'approximate') ? (
               // Without location the app can't tell parked from moving, so it stays locked (the safe
               // side). One large action asks for location again.
               <>
                 <View testID="route.locationNeeded" style={styles.assumption}>
                   <StatusIcon name="map-marker-off-outline" size={28} color={palette.caution} />
-                  <Text style={[styles.glance, { color: palette.text }]}>Allow location so TruckBeez can tell when you're parked</Text>
+                  <Text style={[styles.glance, { color: palette.text }]}>
+                    {permission === 'approximate'
+                      ? "Turn on precise location so TruckBeez can tell when you're parked"
+                      : "Allow location so TruckBeez can tell when you're parked"}
+                  </Text>
                 </View>
                 <Button testID="route.allowLocation" label="Allow location" onPress={requestPermission} />
               </>

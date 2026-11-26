@@ -20,7 +20,9 @@
           "locationWhenInUsePermission": "TruckBeez uses your location while the app is open to tell when you're driving, so it can lock typing for your safety.",
           "isIosBackgroundLocationEnabled": false,
           "isAndroidBackgroundLocationEnabled": false,
-          "isAndroidForegroundServiceEnabled": false
+          "isAndroidForegroundServiceEnabled": false,
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false
         }
       ]
     ]

@@ -4,7 +4,7 @@ import { AppShell } from '../App';
 import type { PlanRouteResult } from '../src/api';
 import { checkDraft, EMPTY_DRAFT, type ProfileDraft } from '../src/profile/draft';
 import type { SavedProfile } from '../src/profile/format';
-import { NO_SAFE_MOVING_MAX_RETRIES, NO_SAFE_MOVING_RETRY_MS, RETRY_DELAYS_MS } from '../src/screens/MapScreen';
+import { NO_SAFE_MOVING_MAX_RETRIES, NO_SAFE_MOVING_RETRY_MS, RETRY_DELAYS_MS, spokenDestination } from '../src/screens/MapScreen';
 import { TruckProfileProvider } from '../src/state/TruckProfileContext';
 import { VOICE } from '../src/voice/lines';
 import { controlledMotion, fakeSpeaker, Providers } from '../test-support/harness';
@@ -39,7 +39,7 @@ const ROUTE: PlanRouteResult = {
 };
 const NO_SAFE: PlanRouteResult = { kind: 'noSafeRoute', reasons: ['Violated vehicle restriction.'], safetyAssumptions: [] };
 
-function setup(results: PlanRouteResult[] = [], initialMotion: 'parked' | 'moving' = 'parked', permission: 'granted' | 'denied' = 'granted') {
+function setup(results: PlanRouteResult[] = [], initialMotion: 'parked' | 'moving' = 'parked', permission: 'granted' | 'denied' | 'approximate' = 'granted') {
   const motion = controlledMotion(initialMotion, permission);
   const voice = fakeSpeaker();
   const planRoute = jest.fn(async (_r: RouteRequest) => results.shift() ?? ROUTE);
@@ -119,6 +119,25 @@ describe('location permission denied', () => {
     expect(screen.getByTestId('route.locationNeeded')).toHaveTextContent("Allow location so TruckBeez can tell when you're parked", { exact: false });
     fireEvent.press(screen.getByTestId('route.allowLocation'));
     expect(motion.requestPermission).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('approximate location (Android coarse)', () => {
+  it('@driver-safety stays locked and asks for precise location', () => {
+    setup([], 'moving', 'approximate');
+    expect(screen.queryByTestId('route.origin')).toBeNull();
+    expect(screen.getByTestId('route.locationNeeded')).toHaveTextContent("Turn on precise location so TruckBeez can tell when you're parked", {
+      exact: false,
+    });
+  });
+});
+
+describe('spoken destination (security review L2)', () => {
+  it.each(['39.9526, -75.1652', '(40.7,-74.0)', '+40.7, -74', 'N40 W74', '40°N 74°W'])('never speaks coordinates: %s', (text) => {
+    expect(spokenDestination(text)).toBe('your destination');
+  });
+  it('speaks a place name', () => {
+    expect(spokenDestination('Walmart DC Bentonville')).toBe('Walmart DC Bentonville');
   });
 });
 

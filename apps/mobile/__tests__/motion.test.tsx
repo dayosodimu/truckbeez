@@ -69,7 +69,7 @@ describe('MotionProvider', () => {
   }
 
   it('location denied: stays moving (no evidence) and reports the permission', async () => {
-    const source: SpeedSource = { start: async () => ({ granted: false, stop: jest.fn() }), requestPermission: async () => false };
+    const source: SpeedSource = { start: async () => ({ permission: 'denied', stop: jest.fn() }), requestPermission: async () => 'denied' };
     render(
       <MotionProvider source={source}>
         <Probe />
@@ -87,9 +87,9 @@ describe('MotionProvider', () => {
       const source: SpeedSource = {
         start: async (onFix) => {
           push = onFix;
-          return { granted: true, stop };
+          return { permission: 'granted', stop };
         },
-        requestPermission: async () => true,
+        requestPermission: async () => 'granted',
       };
       const t0 = Date.now();
       const { unmount } = render(

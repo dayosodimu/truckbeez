@@ -6,14 +6,17 @@ import { INITIAL_MOTION, MOTION, onFix, onTick, type MotionModel, type MotionSta
  * tests drive fixes directly. Speed is used on the device only: nothing here is sent to the
  * API or stored (non-negotiable #4).
  */
+/** `approximate`: allowed, but not precise enough to tell parked from moving (stays locked). */
+export type PermissionResult = 'granted' | 'denied' | 'approximate';
+
 export interface SpeedSource {
-  /** Ask for permission and start fixes. Resolves to whether location is available. */
-  start(onFix: (fix: SpeedFix) => void): Promise<{ granted: boolean; stop: () => void }>;
+  /** Ask for permission and start fixes (only when precise location is granted). */
+  start(onFix: (fix: SpeedFix) => void): Promise<{ permission: PermissionResult; stop: () => void }>;
   /** Ask the OS for permission again (the "Allow location" button). */
-  requestPermission(): Promise<boolean>;
+  requestPermission(): Promise<PermissionResult>;
 }
 
-export type LocationPermission = 'unknown' | 'granted' | 'denied';
+export type LocationPermission = 'unknown' | PermissionResult;
 
 interface MotionValue {
   state: MotionState;
@@ -51,7 +54,7 @@ export function MotionProvider({ source, children, now = Date.now }: Props) {
           return;
         }
         stop = result.stop;
-        setPermission(result.granted ? 'granted' : 'denied');
+        setPermission(result.permission);
       })
       .catch(() => !cancelled && setPermission('denied'));
     const tick = setInterval(() => setModel((m) => onTick(m, nowRef.current())), 1_000);
@@ -68,7 +71,13 @@ export function MotionProvider({ source, children, now = Date.now }: Props) {
       moving: model.state === 'moving',
       permission,
       requestPermission: () => {
-        void source.requestPermission().then((granted) => granted && setAttempt((a) => a + 1));
+        void source
+          .requestPermission()
+          .then((result) => {
+            setPermission(result);
+            if (result === 'granted') setAttempt((a) => a + 1);
+          })
+          .catch(() => undefined); // stays locked: fails safe
       },
     }),
     [model.state, permission, source]
