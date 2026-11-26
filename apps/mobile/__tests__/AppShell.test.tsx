@@ -6,6 +6,7 @@ import { checkDraft, EMPTY_DRAFT, type ProfileDraft } from '../src/profile/draft
 import type { SavedProfile } from '../src/profile/format';
 import { RETRY_DELAYS_MS } from '../src/screens/MapScreen';
 import { TruckProfileProvider } from '../src/state/TruckProfileContext';
+import { controlledMotion, fakeSpeaker, Providers } from '../test-support/harness';
 
 const VAN: ProfileDraft = {
   ...EMPTY_DRAFT,
@@ -39,12 +40,16 @@ const NO_SAFE: PlanRouteResult = { kind: 'noSafeRoute', reasons: ['Violated vehi
 
 function renderApp(results: PlanRouteResult[], draft?: ProfileDraft | null) {
   const planRoute = jest.fn(async (_r: RouteRequest) => results.shift() ?? ROUTE);
+  const motion = controlledMotion('parked');
+  const voice = fakeSpeaker();
   render(
-    <TruckProfileProvider initial={draft === null ? undefined : initialProfile(draft)}>
-      <AppShell planRoute={planRoute} />
-    </TruckProfileProvider>
+    <Providers motion={motion} speaker={voice.speaker}>
+      <TruckProfileProvider initial={draft === null ? undefined : initialProfile(draft)}>
+        <AppShell planRoute={planRoute} />
+      </TruckProfileProvider>
+    </Providers>
   );
-  return planRoute;
+  return Object.assign(planRoute, { motion, voice });
 }
 async function planTrip() {
   fireEvent.changeText(screen.getByTestId('route.origin'), '40.7357, -74.1724');
@@ -63,9 +68,11 @@ describe('@routing-safety stale answers never win (QA review of PR #32)', () => 
       return NO_SAFE; // new truck: no safe route
     });
     render(
-      <TruckProfileProvider initial={initialProfile()}>
-        <AppShell planRoute={planRoute} />
-      </TruckProfileProvider>
+      <Providers motion={controlledMotion('parked')} speaker={fakeSpeaker().speaker}>
+        <TruckProfileProvider initial={initialProfile()}>
+          <AppShell planRoute={planRoute} />
+        </TruckProfileProvider>
+      </Providers>
     );
     await planTrip();
     await act(async () => fireEvent.press(screen.getByTestId('routeError.action.retry'))); // old-truck request in flight
@@ -87,9 +94,11 @@ describe('@routing-safety stale answers never win (QA review of PR #32)', () => 
     let n = 0;
     const planRoute = jest.fn(async () => (++n === 1 ? ROUTE : new Promise<PlanRouteResult>((res) => (resolveNew = res))));
     render(
-      <TruckProfileProvider initial={initialProfile()}>
-        <AppShell planRoute={planRoute} />
-      </TruckProfileProvider>
+      <Providers motion={controlledMotion('parked')} speaker={fakeSpeaker().speaker}>
+        <TruckProfileProvider initial={initialProfile()}>
+          <AppShell planRoute={planRoute} />
+        </TruckProfileProvider>
+      </Providers>
     );
     await planTrip();
     expect(screen.getByTestId('map.routeLine')).toBeTruthy();

@@ -16,7 +16,7 @@ The baseline suite has 31 cases covering the core P1 requirements; each case ID 
 | TC-M-008 | Turn-by-turn guidance | FR-M-06 | Route selected, GPX replay | Start navigation, replay track | Voice + banner for each manoeuvre at correct distance | P1 | AP |
 | TC-M-009 | Reroute within 5 s | FR-M-07, NFR-01 | Navigating | Replay GPX leaving the route | New route shown ≤ 5 s after deviation | P1 | AP |
 | TC-M-010 | Report hazard in 2 taps | FR-M-08, NFR-10 | Navigating at speed | Tap report → tap Accident | Report sent with current location; undo for 5 s | P1 | AP |
-| TC-M-011 | Keyboard locked while moving | NFR-10 | Speed > 5 mph | Try to open search | Text input disabled; voice search offered | P1 | AP |
+| TC-M-011 | Keyboard locked while moving | NFR-10 | Speed > 8 km/h (≈ 5 mph) held 3 s; no GPS fix also counts as moving (BR-29 §7) | Try to type a destination or open truck details | Trip fields are not rendered ("Park to plan a route"); truck details show the 02g "Park to change truck details" overlay; voice search offered | P0 | U + AP |
 | TC-M-012 | Receive nearby hazard | FR-M-09 | Two devices, same route | Device B reports; observe device A | Device A shows hazard ≤ 3 s | P1 | AP |
 | TC-M-013 | Accept fleet invite with consent | FR-M-11, BR-06 | Pending invite | Open invite → read consent → accept | Membership active; duty toggle visible | P1 | AP |
 | TC-M-014 | No tracking off duty | BRULE-02 | In fleet, off duty | Drive 10 min (GPX) | No location:update emitted; dashboard shows offline | P1 | AP + API |
@@ -24,6 +24,8 @@ The baseline suite has 31 cases covering the core P1 requirements; each case ID 
 | TC-M-016 | Delete account | FR-M-15, NFR-08 | Signed in | Settings → Delete account → confirm | Signed out; API returns 401 for old token; purge job scheduled | P1 | AP + API |
 | TC-M-017 | Background location permission denied | NFR-08 | Fresh install | Deny "Always" permission | App explains impact; navigation still works in foreground | P2 | Manual |
 | TC-M-018 | Battery budget | NFR-03 | Full charge, reference devices | Navigate 60 min, screen on | Drain ≤ 7% | P1 | Manual |
+| TC-M-019 | Driving pauses an edit, keeps the draft | NFR-10, BR-29 AC-21 | Editing truck details, parked | Change height; drive > 8 km/h for 3 s; tap OK; park 25 s (8 km/h ruled out from position, then the 5 s hold; H1-R, F1); reopen | All inputs disabled behind "Editing paused while you drive"; nothing saved (chip unchanged); on reopen "You have unsaved changes from earlier." with Review / Discard | P0 | U + AP |
+| TC-M-020 | No safe route while moving | NFR-10, BR-31 AC-6/7/8/12 | Destination set; 422 | Drive; wait 5 × 60 s; park 25 s (8 km/h ruled out from position, then the 5 s hold; H1-R, F1) | Banner "No safe route from here" with only Repeat (≥ 72 dp), no reasons or inputs; one voice line per entry; silent retry every 60 s, max 5, then "Still no truck-safe route…" once; parking shows the 03c sheet with no second voice line | P0 | U + AP |
 
 ## Web — fleet dashboard and admin
 

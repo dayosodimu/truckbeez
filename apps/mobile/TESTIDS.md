@@ -22,13 +22,16 @@ Legend: ✅ implemented in E1 · ⏳ not yet, with the reason and the item that 
 | `truckProfile.tunnel.{B,C,D,E,notSure}` | ✅ | radio + `checked` state; "Not sure" sends `B` (BR-73) |
 | `truckProfile.summary` | ✅ | |
 | `truckProfile.save` | ✅ | always enabled (AC-8) |
-| `truckProfile.hazmat.division.{1.1…6.2}` | ⏳ | needs PR #28 (BR-59) on `main` |
-| `truckProfile.hazmat.pih` | ⏳ | PR #28 (BR-59) |
+| `truckProfile.hazmat.division.{1.1…6.2}` | ⏳ | unblocked: the API accepts divisions (PR #28, merged); editor UI not built yet |
+| `truckProfile.hazmat.pih` | ⏳ | unblocked (PR #28 merged); editor UI not built yet |
 | `truckProfile.hazmat.combustible` / `.envHazard` | ⏳ | BR-74 owner decision (server mapping) |
-| `truckProfile.hazmat.placards` | ⏳ | needs divisions (PR #28) |
-| `truckProfile.hazmat.avoids` | ⏳ | spec §5.2: the app must read the server's mapping, which moves to `@truckbeez/shared` after PR #28 |
+| `truckProfile.hazmat.placards` | ⏳ | follows the division UI |
+| `truckProfile.hazmat.avoids` | ⏳ | spec §5.2: the app must read the server's mapping; move it from `services/api` to `@truckbeez/shared` first |
 | `truckProfile.saveError` | ⏳ | no profile API yet (BR-3); E1 saves on the device |
-| `truckProfile.draftBanner` / `.review` / `.unsaved` / `.movingLock` (+ children) | ⏳ | flows §7–8; the moving lock needs location/speed (later step E) |
+| `truckProfile.movingLock` / `.movingLock.ok` | ✅ | BR-78: entry while moving and edit paused by driving (02g) |
+| `app.mapLayer` | ✅ | BR-78: map layer; `importantForAccessibility="no-hide-descendants"` while a lock or the editor covers it (TalkBack) |
+| `truckProfile.draftBanner` / `.draftBanner.review` / `.draftBanner.discard` | ✅ | BR-78: draft kept after driving interrupts an edit |
+| `truckProfile.review` / `.unsaved` (+ children) | ⏳ | flows §8.1–8.2 |
 | `map.routeChangedBanner`, `toast.profileSaved`, `toast.routeStillSafe` | ⏳ | need an active-route (navigating) state |
 
 ## BR-31 route errors (spec §8.6)
@@ -45,9 +48,9 @@ Legend: ✅ implemented in E1 · ⏳ not yet, with the reason and the item that 
 | `routeError.close` | ✅ | |
 | `map.routeLine` | ✅ | **absent in every error state** (tested) |
 | `map.profileChip` | ✅ | |
-| `routeError.banner` / `.banner.repeat` | ⏳ | in-motion variants 04c/04d need speed (later step E) |
+| `routeError.banner` / `.banner.repeat` | ✅ | BR-78: in-motion 04c / 04d, Repeat ≥ 72 dp |
 
-**Coverage:** BR-31: 10 of 11 rows ✅. BR-29: 14 of 22 rows ✅. All 8 open BR-29 rows wait on PR #28, BR-74, BR-3 or the location work.
+**Coverage:** BR-31: 11 of 11 rows ✅. BR-29: 16 of 24 rows ✅. Open BR-29 rows: the division/PIH/placards/avoids UI (unblocked, next), combustible/marine (BR-74), save errors (BR-3), the review/unsaved flows (§8), and active-route banners.
 
 ## Added in E1 (not in the specs)
 
@@ -61,6 +64,9 @@ Legend: ✅ implemented in E1 · ⏳ not yet, with the reason and the item that 
 | `route.origin`, `route.destination`, `route.submit` | Trip entry ("lat, lng" until destination search lands) |
 | `route.loading`, `route.summary`, `route.safetyAssumption.{i}`, `route.invalid` | Route states |
 | `route.needsProfile`, `route.setTruck` | No truck details yet (BR-29 §9: no route request without them) |
+| `routeError.banner.variant` | Hidden variant marker on the in-motion banner (`noSafeRoute` \| `unavailable` \| `offline`) |
+| `route.parkToPlan` | "Park to plan a route": replaces the trip fields while moving (NFR-10) |
+| `route.locationNeeded`, `route.allowLocation` | Location denied: the app stays locked (no evidence of parking) and asks again |
 
 ## Renamed from PR #2's starter app (C7 diff)
 

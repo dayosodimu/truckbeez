@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AccessibilityInfo, Keyboard, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { HAZMAT_CLASS_LABELS, HAZMAT_CLASSES, type HazmatClass, type TruckProfile } from '@truckbeez/shared';
 import { Button, IconButton } from '../components/Button';
 import { StatusIcon } from '../components/StatusIcon';
@@ -23,6 +23,12 @@ interface Props {
   initial?: SavedProfile;
   onSave: (saved: SavedProfile, profile: TruckProfile) => void;
   onBack: () => void;
+  /** A draft kept from an edit interrupted by driving (BR-29 §7). Offered back with Review / Discard. */
+  restoredDraft?: ProfileDraft;
+  /** Moving: inputs disabled, keyboard dismissed, Save does nothing. The overlay sits on top. */
+  locked?: boolean;
+  onDraftChange?: (draft: ProfileDraft) => void;
+  onDiscardDraft?: () => void;
 }
 
 const TUNNEL_OPTIONS: { value: TunnelChoice; title: string; help: string }[] = [
@@ -80,9 +86,18 @@ function Message({ field, error, warning }: { field: Field; error?: string; warn
  * them. E1 leaves out the review, unsaved and moving-lock flows (§7–8) and the division/PIH
  * pickers (BR-59); see TESTIDS.md.
  */
-export function TruckProfileScreen({ initial, onSave, onBack }: Props) {
+export function TruckProfileScreen({ initial, onSave, onBack, restoredDraft, locked = false, onDraftChange, onDiscardDraft }: Props) {
   const palette = usePalette();
-  const [draft, setDraft] = useState<ProfileDraft>(initial?.draft ?? EMPTY_DRAFT);
+  const savedDraft = initial?.draft ?? EMPTY_DRAFT;
+  const [draft, setDraft] = useState<ProfileDraft>(restoredDraft ?? savedDraft);
+  const [showDraftBanner, setShowDraftBanner] = useState(Boolean(restoredDraft) && restoredDraft !== initial?.draft);
+  useEffect(() => {
+    if (draft !== savedDraft) onDraftChange?.(draft);
+    // Report draft changes only; the callback identity doesn't matter.
+  }, [draft]);
+  useEffect(() => {
+    if (locked) Keyboard.dismiss();
+  }, [locked]);
   const [showErrors, setShowErrors] = useState(false);
   const inputs = useRef<Partial<Record<Field, TextInput | null>>>({});
   const check = useMemo(() => checkDraft(draft), [draft]);
@@ -93,6 +108,7 @@ export function TruckProfileScreen({ initial, onSave, onBack }: Props) {
     setDraft((d) => ({ ...d, [field]: { ...d[field], [part]: text } }));
 
   const save = () => {
+    if (locked) return; // never save while moving (BR-29 AC-21)
     const result = checkDraft(draft);
     if (!result.profile) {
       setShowErrors(true);
@@ -125,6 +141,7 @@ export function TruckProfileScreen({ initial, onSave, onBack }: Props) {
         {draft.units === 'imperial' ? (
           <View style={styles.row}>
             <TextInput
+              editable={!locked}
               ref={(r) => {
                 inputs.current[field] = r;
               }}
@@ -138,6 +155,7 @@ export function TruckProfileScreen({ initial, onSave, onBack }: Props) {
             />
             <Text style={[styles.unit, text]}>ft</Text>
             <TextInput
+              editable={!locked}
               testID={`truckProfile.${field}.in`}
               accessibilityLabel={`${title}, inches`}
               value={draft[field].in}
@@ -150,6 +168,7 @@ export function TruckProfileScreen({ initial, onSave, onBack }: Props) {
         ) : (
           <View style={styles.row}>
             <TextInput
+              editable={!locked}
               ref={(r) => {
                 inputs.current[field] = r;
               }}
@@ -168,6 +187,7 @@ export function TruckProfileScreen({ initial, onSave, onBack }: Props) {
           <View style={styles.chips}>
             {PRESETS[field]!.map((p) => (
               <Pressable
+                disabled={locked}
                 key={p.id}
                 testID={`truckProfile.${field}.preset.${p.id}`}
                 accessibilityRole="button"
@@ -202,7 +222,12 @@ export function TruckProfileScreen({ initial, onSave, onBack }: Props) {
     : undefined;
 
   return (
-    <View testID="truckProfile.screen" style={[styles.screen, { backgroundColor: palette.background }]}>
+    <View
+      testID="truckProfile.screen"
+      // Android: hide the locked form from TalkBack (accessibilityViewIsModal on the overlay is iOS-only).
+      importantForAccessibility={locked ? 'no-hide-descendants' : 'auto'}
+      style={[styles.screen, { backgroundColor: palette.background }]}
+    >
       <View style={styles.header}>
         <IconButton testID="truckProfile.back" label="Back" glyph="←" onPress={onBack} />
         <Text accessibilityRole="header" style={[styles.headerTitle, text]}>
@@ -210,9 +235,44 @@ export function TruckProfileScreen({ initial, onSave, onBack }: Props) {
         </Text>
       </View>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        {showDraftBanner && (
+          <View testID="truckProfile.draftBanner" style={[styles.draftBanner, { borderColor: palette.caution, backgroundColor: palette.surface }]}>
+            <View style={styles.message}>
+              <StatusIcon name="history" size={24} color={palette.caution} />
+              <Text style={[styles.fieldTitle, { color: palette.text }]}>You have unsaved changes from earlier.</Text>
+            </View>
+            <View style={styles.row}>
+              <Pressable
+                disabled={locked}
+                testID="truckProfile.draftBanner.review"
+                accessibilityRole="button"
+                accessibilityLabel="Review"
+                onPress={() => setShowDraftBanner(false)}
+                style={[styles.segment, { borderColor: palette.brandStrong }]}
+              >
+                <Text style={[styles.segmentText, { color: palette.text }]}>Review</Text>
+              </Pressable>
+              <Pressable
+                disabled={locked}
+                testID="truckProfile.draftBanner.discard"
+                accessibilityRole="button"
+                accessibilityLabel="Discard"
+                onPress={() => {
+                  setDraft(savedDraft);
+                  setShowDraftBanner(false);
+                  onDiscardDraft?.();
+                }}
+                style={[styles.segment, { borderColor: palette.blocked }]}
+              >
+                <Text style={[styles.segmentText, { color: palette.text }]}>Discard</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
         <View testID="truckProfile.units" style={styles.row} accessibilityRole="radiogroup" accessibilityLabel="Units">
           {(['imperial', 'metric'] as UnitSystem[]).map((u) => (
             <Pressable
+              disabled={locked}
               key={u}
               testID={`truckProfile.units.${u}`}
               accessibilityRole="radio"
@@ -236,6 +296,7 @@ export function TruckProfileScreen({ initial, onSave, onBack }: Props) {
           <Text style={[styles.fieldTitle, text]}>Gross weight *</Text>
           <View style={styles.row}>
             <TextInput
+              editable={!locked}
               ref={(r) => {
                 inputs.current.weight = r;
               }}
@@ -261,6 +322,7 @@ export function TruckProfileScreen({ initial, onSave, onBack }: Props) {
           <Text style={[styles.fieldTitle, text]}>Axles *</Text>
           <View style={styles.row}>
             <Pressable
+              disabled={locked}
               testID="truckProfile.axles.decrement"
               accessibilityRole="button"
               accessibilityLabel="Fewer axles"
@@ -277,6 +339,7 @@ export function TruckProfileScreen({ initial, onSave, onBack }: Props) {
               {draft.axles ?? '–'}
             </Text>
             <Pressable
+              disabled={locked}
               testID="truckProfile.axles.increment"
               accessibilityRole="button"
               accessibilityLabel="More axles"
@@ -293,6 +356,7 @@ export function TruckProfileScreen({ initial, onSave, onBack }: Props) {
         <View style={[styles.row, styles.switchRow]}>
           <Text style={[styles.fieldTitle, text, styles.flex]}>Carrying hazmat?</Text>
           <Switch
+            disabled={locked}
             testID="truckProfile.hazmat.toggle"
             accessibilityLabel="Carrying hazmat?"
             value={draft.hazmat}
@@ -307,6 +371,7 @@ export function TruckProfileScreen({ initial, onSave, onBack }: Props) {
                 const checked = draft.hazmatClasses.includes(c);
                 return (
                   <Pressable
+                    disabled={locked}
                     key={c}
                     testID={`truckProfile.hazmat.class.${c}`}
                     accessibilityRole="checkbox"
@@ -332,6 +397,7 @@ export function TruckProfileScreen({ initial, onSave, onBack }: Props) {
                 const selected = draft.tunnel === o.value;
                 return (
                   <Pressable
+                    disabled={locked}
                     key={o.value}
                     testID={`truckProfile.tunnel.${o.value}`}
                     accessibilityRole="radio"
@@ -359,7 +425,7 @@ export function TruckProfileScreen({ initial, onSave, onBack }: Props) {
         )}
       </ScrollView>
       <View style={[styles.footer, { borderColor: palette.border, backgroundColor: palette.background }]}>
-        <Button testID="truckProfile.save" label="Save truck details" onPress={save} />
+        <Button testID="truckProfile.save" label="Save truck details" onPress={save} disabled={locked} />
       </View>
     </View>
   );
@@ -398,4 +464,5 @@ const styles = StyleSheet.create({
   tunnelRow: { minHeight: TARGET.primary, borderWidth: 2, borderRadius: 8, padding: 12, marginBottom: 8, justifyContent: 'center' },
   summary: { fontSize: 16, marginTop: 16 },
   footer: { padding: 16, borderTopWidth: 1 },
+  draftBanner: { borderWidth: 2, borderRadius: 12, padding: 12, gap: 8 },
 });

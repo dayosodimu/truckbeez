@@ -104,11 +104,11 @@ describe('TruckProfileScreen (BR-29 02a)', () => {
     const class3 = screen.getByTestId('truckProfile.hazmat.class.3');
     expect(class3.props.accessibilityRole).toBe('checkbox');
     fireEvent.press(class3);
-    expect(screen.getByTestId('truckProfile.hazmat.class.3').props.accessibilityState).toEqual({ checked: true });
+    expect(screen.getByTestId('truckProfile.hazmat.class.3').props.accessibilityState).toMatchObject({ checked: true });
     expect(screen.getByTestId('truckProfile.tunnel.notSure').props.accessibilityRole).toBe('radio');
     // Radios report `checked`, which TalkBack and VoiceOver read for the radio role (design review).
-    expect(screen.getByTestId('truckProfile.tunnel.notSure').props.accessibilityState).toEqual({ checked: true });
-    expect(screen.getByTestId('truckProfile.tunnel.B').props.accessibilityState).toEqual({ checked: false });
+    expect(screen.getByTestId('truckProfile.tunnel.notSure').props.accessibilityState).toMatchObject({ checked: true });
+    expect(screen.getByTestId('truckProfile.tunnel.B').props.accessibilityState).toMatchObject({ checked: false });
 
     fireEvent.press(screen.getByTestId('truckProfile.save'));
     expect(onSave.mock.calls[0][1]).toMatchObject({ hazmatClasses: [3], tunnelCategory: 'B' });
@@ -116,7 +116,7 @@ describe('TruckProfileScreen (BR-29 02a)', () => {
 
   it('the units radios report checked and their names contain the visible text (WCAG 2.5.3)', () => {
     render(<TruckProfileScreen onSave={jest.fn()} onBack={jest.fn()} />);
-    expect(screen.getByTestId('truckProfile.units.imperial').props.accessibilityState).toEqual({ checked: true });
+    expect(screen.getByTestId('truckProfile.units.imperial').props.accessibilityState).toMatchObject({ checked: true });
     expect(screen.getByTestId('truckProfile.units.imperial').props.accessibilityLabel).toContain('ft / lb');
     expect(screen.getByTestId('truckProfile.units.metric').props.accessibilityLabel).toContain('m / kg');
   });
