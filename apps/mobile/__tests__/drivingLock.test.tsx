@@ -66,6 +66,8 @@ describe('NFR-10 / TB-PRF-06 moving lock (BR-29 §7, 02g)', () => {
     expect(screen.getByTestId('truckProfile.movingLock')).toHaveTextContent(`Your current details: 13'6" · 80,000 lb`, { exact: false });
     expect(screen.queryByTestId('truckProfile.screen')).toBeNull();
     expect(voice.said()).toEqual([VOICE.parkToEdit]);
+    // QA N09b: the map behind the lock is hidden from TalkBack while the overlay shows.
+    expect(screen.getByTestId('app.mapLayer', { includeHiddenElements: true }).props.importantForAccessibility).toBe('no-hide-descendants');
     fireEvent.press(screen.getByTestId('truckProfile.movingLock.ok'));
     expect(screen.queryByTestId('truckProfile.movingLock')).toBeNull();
   });
@@ -329,6 +331,18 @@ describe('BR-31 in-motion route errors (04c / 04d)', () => {
       globalThis.setTimeout = realSetTimeout;
     }
     expect(scheduled).toEqual([]); // with the guard removed, the 15 s retry is scheduled here
+  });
+
+  it('QA N06: while moving, a retry that comes back offline after a 502 speaks the offline line, not the 502 one', async () => {
+    const { motion, voice } = setup([{ kind: 'unavailable', status: 502 }, { kind: 'offline' }, ROUTE]);
+    await planTrip();
+    motion.set('moving');
+    expect(voice.said()).toEqual([VOICE.unavailableMoving]);
+    await act(async () => {
+      jest.advanceTimersByTime(RETRY_DELAYS_MS[0]);
+    });
+    expect(screen.getByTestId('routeError.banner.variant').props.accessibilityValue).toEqual({ text: 'offline' });
+    expect(voice.said()).toEqual([VOICE.unavailableMoving, VOICE.offlineMoving]);
   });
 
   it('04d: moving and routing down shows the caution banner and speaks the 502 line; recovery says "Routing is back"', async () => {

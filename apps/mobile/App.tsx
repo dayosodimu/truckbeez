@@ -48,7 +48,7 @@ export function AppShell({ planRoute }: ShellProps) {
 
   return (
     <View style={styles.root}>
-      <View style={styles.root} importantForAccessibility={entryLock || editing ? 'no-hide-descendants' : 'auto'}>
+      <View testID="app.mapLayer" style={styles.root} importantForAccessibility={entryLock || editing ? 'no-hide-descendants' : 'auto'}>
         <MapScreen planRoute={planRoute} onEditProfile={openEditor} profileVersion={profileVersion} />
       </View>
       {editing && (

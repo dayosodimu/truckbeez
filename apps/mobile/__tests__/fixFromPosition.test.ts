@@ -1,4 +1,4 @@
-import { distanceM, fixFromPosition, MAX_ACCURACY_M, type PositionLike, type PrevFix } from '../src/motion/fixFromPosition';
+import { distanceM, fixFromPosition, type PositionLike, type PrevFix } from '../src/motion/fixFromPosition';
 import { INITIAL_MOTION, onFix, type MotionModel } from '../src/motion/motion';
 
 const BASE = { lat: 40.7357, lng: -74.1724 };
@@ -45,13 +45,15 @@ describe('NFR-10 speed from OS positions (security review of PR #35, H1/M1)', ()
   });
 
   it('@driver-safety H1: network/approximate fixes (accuracy worse than 20 m) never count as parked, even at speed 0', () => {
-    const fixes = Array.from({ length: 10 }, (_, i) => pos(i * 1000, BASE, 0, MAX_ACCURACY_M + 1));
+    // 40 fixes: long enough that a 21 m fix would park if the limit were raised (QA N11b).
+    const fixes = Array.from({ length: 40 }, (_, i) => pos(i * 1000, BASE, 0, 21)) // literal, not the constant under test;
     expect(run(fixes).state).toBe('moving');
     expect(fixFromPosition(pos(0, BASE, 0, null), undefined).fix.speedMps).toBeNull();
   });
 
   it('@driver-safety M1: mocked fixes (mock-location app) count as no speed', () => {
-    const fixes = Array.from({ length: 10 }, (_, i) => pos(i * 1000, BASE, 0, 5, true));
+    // 30 fixes: a non-mocked parked truck at 5 m parks by 10 s, so this fails if the check goes (QA N11).
+    const fixes = Array.from({ length: 30 }, (_, i) => pos(i * 1000, BASE, 0, 5, true));
     expect(run(fixes).state).toBe('moving');
   });
 
@@ -88,6 +90,20 @@ describe('NFR-10 speed from OS positions (security review of PR #35, H1/M1)', ()
       }
     }
     expect(falseParks).toBe(0);
+  });
+
+  it("@driver-safety F1/QA F13: the anchor's own (worse) accuracy counts, not just the current fix's", () => {
+    const anchor = fixFromPosition(pos(0, BASE, 0, 20), undefined).prev; // 20 m anchor
+    // 6 s later on a 5 m fix: (5 + 20) / 6 = 4.2 m/s > 2.2 m/s, too soon to rule out driving.
+    expect(fixFromPosition(pos(6000, north(1), 0, 5), anchor).fix.speedMps).toBeNull();
+    // With only the current 5 m counted it would be 0.8 m/s (parked evidence); 12 s later it is.
+    expect(fixFromPosition(pos(12000, north(1), 0, 5), anchor).fix.speedMps).toBe(0);
+  });
+
+  it('@driver-safety QA F06: a fix older than the anchor (out-of-order timestamps) is never parked evidence', () => {
+    const anchor = { ...BASE, at: 10_000, acc: 5 };
+    expect(fixFromPosition(pos(2_000, BASE, 0, 5), anchor).fix.speedMps).toBeNull();
+    expect(fixFromPosition(pos(10_000, BASE, 0, 5), anchor).fix.speedMps).toBeNull();
   });
 
   it('@driver-safety a lone reported 0 with nothing to check it against is not evidence of parking', () => {

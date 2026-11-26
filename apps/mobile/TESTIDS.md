@@ -29,6 +29,7 @@ Legend: ✅ implemented in E1 · ⏳ not yet, with the reason and the item that 
 | `truckProfile.hazmat.avoids` | ⏳ | spec §5.2: the app must read the server's mapping; move it from `services/api` to `@truckbeez/shared` first |
 | `truckProfile.saveError` | ⏳ | no profile API yet (BR-3); E1 saves on the device |
 | `truckProfile.movingLock` / `.movingLock.ok` | ✅ | BR-78: entry while moving and edit paused by driving (02g) |
+| `app.mapLayer` | ✅ | BR-78: map layer; `importantForAccessibility="no-hide-descendants"` while a lock or the editor covers it (TalkBack) |
 | `truckProfile.draftBanner` / `.draftBanner.review` / `.draftBanner.discard` | ✅ | BR-78: draft kept after driving interrupts an edit |
 | `truckProfile.review` / `.unsaved` (+ children) | ⏳ | flows §8.1–8.2 |
 | `map.routeChangedBanner`, `toast.profileSaved`, `toast.routeStillSafe` | ⏳ | need an active-route (navigating) state |
