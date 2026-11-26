@@ -7,7 +7,14 @@ Expo SDK 54, React Native 0.81, React 19.1, New Architecture on (ADR-0003, owner
 - The map and route planner with the route line, ETA and safety assumptions.
 - The route error sheet (BR-31), for no safe route (422), routing down (502) and no connection, with auto-retry.
 
-Not in E1: community reports (needs step C), Fleet screens (step D), in-motion banners and the moving lock (location), hazmat divisions and PIH (PR #28), voice. See [`TESTIDS.md`](TESTIDS.md).
+**BR-78 (driving lock):** the app tells moving from parked using foreground location only (moving above 8 km/h for 3 s, parked below 3 km/h for 5 s; no fix or no permission counts as moving). While moving:
+- truck details and trip entry are locked, and an interrupted edit is kept as a draft, never saved automatically
+- route errors become a banner with one Repeat action
+- voice lines play once per entry, and a 422 is retried every 60 s up to 5 times
+
+Location fixes stay on the phone.
+
+Not yet: community reports (needs step C), Fleet screens (step D), hazmat divisions and PIH in the editor, turn-by-turn voice (ADR-0002). See [`TESTIDS.md`](TESTIDS.md).
 
 ## Run
 ```bash

@@ -1,20 +1,34 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { LatLng, RouteResponse, SafetyAssumption } from '@truckbeez/shared';
 import { MESSAGES } from '@truckbeez/shared';
 import { planRoute as defaultPlanRoute, type PlanRoute } from '../api';
 import { Button } from '../components/Button';
+import { RouteErrorBanner } from '../components/RouteErrorBanner';
 import { RouteErrorSheet, type RouteErrorVariant } from '../components/RouteErrorSheet';
 import { RouteMap } from '../components/RouteMap';
 import { StatusIcon } from '../components/StatusIcon';
+import { useMotion } from '../motion/MotionContext';
 import { formatProfileChip } from '../profile/format';
+import { mapReasons } from '../route/reasons';
 import { useTruckProfile } from '../state/TruckProfileContext';
 import { TARGET, usePalette } from '../theme';
 import { formatDistance, formatDuration, parseLatLng } from '../units';
+import { GENERIC_SPOKEN_REASON, VOICE } from '../voice/lines';
+import { useSpeaker } from '../voice/Voice';
 
 /** BR-31 §7: retry after 15 s, 30 s, 60 s, then every 60 s while the destination is set. */
 export const RETRY_DELAYS_MS = [15_000, 30_000, 60_000] as const;
 const retryDelay = (attempt: number) => RETRY_DELAYS_MS[Math.min(attempt, RETRY_DELAYS_MS.length - 1)]!;
+
+/** BR-31 §4.1 / AC-8: while moving, a 422 is retried silently every 60 s, at most 5 times. */
+export const NO_SAFE_MOVING_RETRY_MS = 60_000;
+export const NO_SAFE_MOVING_MAX_RETRIES = 5;
+/** BR-31 AC-7: don't repeat a voice line that played less than this long ago. */
+const VOICE_REPEAT_GAP_MS = 60_000;
+
+/** Coordinates typed as a destination are not spoken: "your destination" is. */
+const spokenDestination = (name: string) => (/^-?\d/.test(name.trim()) ? 'your destination' : name);
 
 type RouteState =
   | { status: 'idle' }
@@ -44,6 +58,16 @@ interface Props {
 export function MapScreen({ planRoute = defaultPlanRoute, onEditProfile, profileVersion }: Props) {
   const palette = usePalette();
   const { saved, profile } = useTruckProfile();
+  const { moving, permission, requestPermission } = useMotion();
+  const speaker = useSpeaker();
+  const movingRef = useRef(moving);
+  movingRef.current = moving;
+  /** The last voice line for the current error, for Repeat (BR-31 §6). */
+  const lastLine = useRef<string | undefined>(undefined);
+  const lastSpokenAt = useRef(0);
+  const noSafeMovingRetries = useRef(0);
+  const lastSpokenReason = useRef(GENERIC_SPOKEN_REASON);
+  const tripRef = useRef<Trip | undefined>(undefined);
   const [originText, setOriginText] = useState('');
   const [destinationText, setDestinationText] = useState('');
   const [trip, setTrip] = useState<Trip>();
@@ -77,8 +101,13 @@ export function MapScreen({ planRoute = defaultPlanRoute, onEditProfile, profile
       setRetrying(false);
 
       if (result.kind === 'route') {
+        // Recovered from an error: say so (BR-31 §6 "auto-retry success" / "502 recovered").
+        if (lastVariant.current === 'noSafeRoute') speaker.say(VOICE.routeFound(result.route.instructions[0]?.text));
+        else if (lastVariant.current) speaker.say(VOICE.routingBack);
         retryAttempt.current = 0;
+        noSafeMovingRetries.current = 0;
         lastVariant.current = undefined;
+        lastLine.current = undefined;
         setState({ status: 'route', route: result.route });
         return;
       }
@@ -88,7 +117,29 @@ export function MapScreen({ planRoute = defaultPlanRoute, onEditProfile, profile
       }
       const variant: RouteErrorVariant = result.kind;
       const stillNone = variant === 'noSafeRoute' && Boolean(options.afterProfileChange) && lastVariant.current === 'noSafeRoute';
+      const entering = lastVariant.current !== variant;
       lastVariant.current = variant;
+
+      // Voice: once per entry into an error state; silent auto-retries stay silent (AC-12).
+      if (entering || options.afterProfileChange) {
+        const reasons = result.kind === 'noSafeRoute' ? result.reasons : [];
+        const top = mapReasons(reasons, Boolean(profile.hazmatClasses.length)).rows[0];
+        const spokenReason = !top || top.kind === 'unknown-vehicle' ? GENERIC_SPOKEN_REASON : top.text;
+        lastSpokenReason.current = spokenReason;
+        const line =
+          variant === 'noSafeRoute'
+            ? movingRef.current
+              ? VOICE.noSafeMoving(spokenReason)
+              : VOICE.noSafeParked(spokenDestination(target.destinationName), spokenReason)
+            : movingRef.current
+              ? VOICE.unavailableMoving
+              : undefined; // parked 502/offline: the sheet says it; no line in BR-31 §6
+        lastLine.current = line;
+        if (line) {
+          speaker.say(line, { critical: movingRef.current });
+          lastSpokenAt.current = Date.now();
+        }
+      }
       setState({
         status: 'error',
         variant,
@@ -101,10 +152,53 @@ export function MapScreen({ planRoute = defaultPlanRoute, onEditProfile, profile
         const delay = retryDelay(retryAttempt.current);
         retryAttempt.current += 1;
         retryTimer.current = setTimeout(() => void request(target, { isRetry: true }), delay);
+      } else if (movingRef.current) {
+        if (noSafeMovingRetries.current < NO_SAFE_MOVING_MAX_RETRIES) {
+          noSafeMovingRetries.current += 1;
+          retryTimer.current = setTimeout(() => void request(target, { isRetry: true }), NO_SAFE_MOVING_RETRY_MS);
+        } else if (noSafeMovingRetries.current === NO_SAFE_MOVING_MAX_RETRIES) {
+          noSafeMovingRetries.current += 1; // spoken once only
+          speaker.say(VOICE.stillNoneMoving, { critical: true });
+          lastSpokenAt.current = Date.now();
+        }
       }
     },
-    [planRoute, profile]
+    [planRoute, profile, speaker]
   );
+
+  // Moving: no typing (non-negotiable #1). Parked again: the 422 banner becomes the sheet with its
+  // actions, the moving retries stop, and no second voice line plays (BR-31 AC-7).
+  useEffect(() => {
+    if (moving) {
+      Keyboard.dismiss();
+      // Started moving with the no-safe-route sheet open: it becomes the banner (BR-31 §3.3),
+      // the voice line repeats only if the last one was >= 60 s ago, and moving retries start.
+      if (lastVariant.current === 'noSafeRoute' && tripRef.current) {
+        const line = VOICE.noSafeMoving(lastSpokenReason.current);
+        lastLine.current = line;
+        if (Date.now() - lastSpokenAt.current >= VOICE_REPEAT_GAP_MS) {
+          speaker.say(line, { critical: true });
+          lastSpokenAt.current = Date.now();
+        }
+        if (!retryTimer.current && noSafeMovingRetries.current < NO_SAFE_MOVING_MAX_RETRIES) {
+          noSafeMovingRetries.current += 1;
+          const target = tripRef.current;
+          retryTimer.current = setTimeout(() => void request(target, { isRetry: true }), NO_SAFE_MOVING_RETRY_MS);
+        }
+      }
+    } else if (lastVariant.current === 'noSafeRoute') {
+      clearRetry();
+      noSafeMovingRetries.current = 0;
+    }
+    // Only the motion change drives this effect; `request` and `speaker` are read at that moment.
+  }, [moving]);
+
+  const repeat = () => {
+    if (lastLine.current) {
+      speaker.say(lastLine.current, { critical: true });
+      lastSpokenAt.current = Date.now();
+    }
+  };
 
   useEffect(() => clearRetry, []);
 
@@ -125,7 +219,9 @@ export function MapScreen({ planRoute = defaultPlanRoute, onEditProfile, profile
     }
     const next: Trip = { origin, destination, destinationName: destinationText.trim() };
     setTrip(next);
+    tripRef.current = next;
     retryAttempt.current = 0;
+    noSafeMovingRetries.current = 0;
     lastVariant.current = undefined;
     void request(next);
   };
@@ -167,7 +263,9 @@ export function MapScreen({ planRoute = defaultPlanRoute, onEditProfile, profile
         contentContainerStyle={styles.panelContent}
         keyboardShouldPersistTaps="handled"
       >
-        {state.status === 'error' ? (
+        {state.status === 'error' && moving ? (
+          <RouteErrorBanner variant={state.variant} onRepeat={repeat} />
+        ) : state.status === 'error' ? (
           <RouteErrorSheet
             variant={state.variant}
             destinationName={trip?.destinationName ?? ''}
@@ -184,6 +282,24 @@ export function MapScreen({ planRoute = defaultPlanRoute, onEditProfile, profile
           />
         ) : (
           <>
+            {moving && permission === 'denied' ? (
+              // Without location the app can't tell parked from moving, so it stays locked (the safe
+              // side). One large action asks for location again.
+              <>
+                <View testID="route.locationNeeded" style={styles.assumption}>
+                  <StatusIcon name="map-marker-off-outline" size={28} color={palette.caution} />
+                  <Text style={[styles.glance, { color: palette.text }]}>Allow location so TruckBeez can tell when you're parked</Text>
+                </View>
+                <Button testID="route.allowLocation" label="Allow location" onPress={requestPermission} />
+              </>
+            ) : moving ? (
+              // Moving: no typing and nothing to read beyond one glance (non-negotiable #1, NFR-10).
+              <View testID="route.parkToPlan" style={styles.assumption} accessibilityLiveRegion="polite">
+                <StatusIcon name="steering" size={28} color={palette.text} />
+                <Text style={[styles.glance, { color: palette.text }]}>Park to plan a route</Text>
+              </View>
+            ) : (
+              <>
             <TextInput
               testID="route.origin"
               accessibilityLabel="Start, latitude and longitude"
@@ -212,6 +328,8 @@ export function MapScreen({ planRoute = defaultPlanRoute, onEditProfile, profile
               </>
             ) : (
               <Button testID="route.submit" label="Find truck-safe route" onPress={submit} disabled={state.status === 'loading'} />
+            )}
+              </>
             )}
             {state.status === 'loading' && (
               <View testID="route.loading" style={styles.loading} accessibilityLiveRegion="polite">
@@ -263,6 +381,7 @@ const styles = StyleSheet.create({
   panelContent: { padding: 16, gap: 8 },
   input: { minHeight: TARGET.primary, borderWidth: 2, borderRadius: 8, paddingHorizontal: 12, fontSize: 18 },
   notice: { fontSize: 16, flexShrink: 1 },
+  glance: { fontSize: 24, fontWeight: '700', flexShrink: 1 },
   loading: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   summary: { fontSize: 22, fontWeight: '700' },
   assumption: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', marginTop: 4 },
