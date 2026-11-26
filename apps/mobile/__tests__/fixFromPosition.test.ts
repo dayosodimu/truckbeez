@@ -28,14 +28,14 @@ describe('NFR-10 speed from OS positions (security review of PR #35, H1/M1)', ()
   });
 
   it('a truly parked truck (GPS 5 m, speed 0, jitter inside the accuracy) parks once 8 km/h is ruled out plus the 5 s hold', () => {
-    // 5 m / 2.22 m/s: evidence starts at 3 s, so parked at 8 s, not before.
+    // (5 + 5) m / 2.22 m/s: evidence starts at 5 s, so parked at 10 s, not before.
     const fixes = (n: number) => Array.from({ length: n }, (_, i) => pos(i * 1000, north(i % 2 ? 2 : 0), 0, 5));
-    expect(run(fixes(8)).state).toBe('moving'); // 0..7 s
-    expect(run(fixes(9)).state).toBe('parked'); // 0..8 s
+    expect(run(fixes(10)).state).toBe('moving'); // 0..9 s
+    expect(run(fixes(11)).state).toBe('parked'); // 0..10 s
   });
 
-  it('a parked truck with a 20 m fix still parks, within 15 s', () => {
-    const fixes = Array.from({ length: 15 }, (_, i) => pos(i * 1000, north(i % 2 ? 6 : 0), 0, 20));
+  it('a parked truck with a 20 m fix still parks, within 25 s', () => {
+    const fixes = Array.from({ length: 25 }, (_, i) => pos(i * 1000, north(i % 2 ? 6 : 0), 0, 20));
     expect(run(fixes).state).toBe('parked');
   });
 
@@ -70,6 +70,24 @@ describe('NFR-10 speed from OS positions (security review of PR #35, H1/M1)', ()
       model = onFix(model, r.fix);
       expect(model.state).toBe('moving');
     }
+  });
+
+  it('@driver-safety F1: a 10 km/h crawl with random GPS error (sigma = accuracy / 1.5) never parks in 500 seeded runs', () => {
+    let seed = 42;
+    const rand = () => ((seed = (seed * 1_103_515_245 + 12_345) % 2 ** 31) / 2 ** 31);
+    const gauss = () => Math.sqrt(-2 * Math.log(rand() || 1e-9)) * Math.cos(2 * Math.PI * rand());
+    let falseParks = 0;
+    for (let run_ = 0; run_ < 500; run_++) {
+      let prev: PrevFix | undefined;
+      let model = INITIAL_MOTION;
+      for (let i = 0; i <= 30; i++) {
+        const r = fixFromPosition(pos(i * 1000, north(i * (10 / 3.6) + gauss() * (20 / 1.5)), 0, 20), prev);
+        prev = r.prev;
+        model = onFix(model, r.fix);
+        if (model.state === 'parked') falseParks++;
+      }
+    }
+    expect(falseParks).toBe(0);
   });
 
   it('@driver-safety a lone reported 0 with nothing to check it against is not evidence of parking', () => {

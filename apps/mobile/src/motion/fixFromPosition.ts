@@ -11,10 +11,10 @@ import { MOTION, type SpeedFix } from './motion';
  * - H1-R: movement smaller than the fix accuracy can't be seen between two 1 s fixes (a truck
  *   at 50 km/h moves 14 m a second, inside a 15 m accuracy). So distance is measured from an
  *   ANCHOR: the fix where the truck was last seen to move. A low speed only counts once the
- *   anchor is old enough that a truck doing more than MOTION.movingKmh would have left the
- *   accuracy circle (accuracy / age <= 8 km/h). Until then the reading is "no speed" (moving).
- *   Cost: parking is confirmed after about accuracy / 2.2 m/s plus the 5 s hold (8 s at 5 m,
- *   14 s at 20 m). Safety over speed (non-negotiable #1).
+ *   anchor is old enough that a truck doing more than MOTION.movingKmh would have left both
+ *   fixes' error ((current + anchor accuracy) / age <= 8 km/h). Until then the reading is "no
+ *   speed" (moving). Cost: parking is confirmed after about (2 x accuracy) / 2.2 m/s plus the
+ *   5 s hold (10 s at 5 m, 23 s at 20 m). Safety over speed (non-negotiable #1).
  *
  * Positions are used here only for that comparison and are kept in memory as the single
  * anchor fix; they are never sent, logged or stored (non-negotiable #4).
@@ -23,7 +23,7 @@ export const MAX_ACCURACY_M = 20;
 /*
  * Why 20 m: network / approximate fixes (the ones Android reports without a speed) are usually
  * worse than 20 m, so they never count as evidence of parking. It also caps how long the
- * anchor rule above can delay parking (20 m / 2.2 m/s = 9 s).
+ * anchor rule above can delay parking ((20 + 20) m / 2.2 m/s = 18 s).
  */
 
 export interface PositionLike {
@@ -36,6 +36,8 @@ export interface PrevFix {
   lat: number;
   lng: number;
   at: number;
+  /** The anchor fix's own accuracy (m); its error adds to the current fix's (re-review F1). */
+  acc?: number;
 }
 
 const EARTH_M = 6_371_000;
@@ -50,7 +52,7 @@ export function distanceM(a: { lat: number; lng: number }, b: { lat: number; lng
 export function fixFromPosition(position: PositionLike, prev: PrevFix | undefined): { fix: SpeedFix; prev: PrevFix } {
   const { latitude: lat, longitude: lng, speed, accuracy } = position.coords;
   const at = position.timestamp;
-  const here: PrevFix = { lat, lng, at };
+  const here: PrevFix = { lat, lng, at, acc: accuracy ?? undefined };
   const untrusted = position.mocked === true || accuracy === null || !Number.isFinite(accuracy) || accuracy > MAX_ACCURACY_M;
   if (untrusted) return { fix: { speedMps: null, at }, prev: here };
   // No anchor yet, or time went backwards: start a new anchor; nothing proves parking yet.
@@ -65,6 +67,8 @@ export function fixFromPosition(position: PositionLike, prev: PrevFix | undefine
   }
   const movingMps = MOTION.movingKmh / 3.6;
   // Still inside the accuracy circle, but too soon to rule out driving faster than 8 km/h.
-  if (reported <= movingMps && accuracy! / ageS > movingMps) return { fix: { speedMps: null, at }, prev };
+  // Both fixes can be off by their accuracy, so allow for the anchor's error too (F1).
+  const uncertaintyM = accuracy! + (prev.acc ?? accuracy!);
+  if (reported <= movingMps && uncertaintyM / ageS > movingMps) return { fix: { speedMps: null, at }, prev };
   return { fix: { speedMps: reported, at }, prev };
 }
