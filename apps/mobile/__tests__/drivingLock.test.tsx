@@ -160,8 +160,11 @@ describe('approximate location (Android coarse)', () => {
 });
 
 describe('spoken destination (security review L2)', () => {
-  it.each(['39.9526, -75.1652', '(40.7,-74.0)', '+40.7, -74', 'N40 W74', '40°N 74°W'])('never speaks coordinates: %s', (text) => {
+  it.each(['39.9526, -75.1652', '(40.7,-74.0)', '+40.7, -74', 'N40 W74', '40°N 74°W', '40,-74', ' 40 , -74 '])('never speaks coordinates: %s', (text) => {
     expect(spokenDestination(text)).toBe('your destination');
+  });
+  it('speaks place names and addresses, including "Exit 12, 5th Ave"', () => {
+    expect(spokenDestination('Exit 12, 5th Ave')).toBe('Exit 12, 5th Ave');
   });
   it('speaks a place name', () => {
     expect(spokenDestination('Walmart DC Bentonville')).toBe('Walmart DC Bentonville');

@@ -28,7 +28,7 @@ export const NO_SAFE_MOVING_MAX_RETRIES = 5;
 const VOICE_REPEAT_GAP_MS = 60_000;
 
 /** Coordinates typed as a destination are not spoken: "your destination" is. */
-export const spokenDestination = (name: string) => (/\d{1,3}\.\d+|\d+\s*°|[NS]\s*\d+.*[EW]\s*\d+/i.test(name) ? 'your destination' : name);
+export const spokenDestination = (name: string) => (/\d{1,3}\.\d+|\d+\s*°|[NS]\s*\d+.*[EW]\s*\d+|^\s*-?\d{1,3}\s*,\s*-?\d{1,3}\s*$/i.test(name) ? 'your destination' : name);
 
 type RouteState =
   | { status: 'idle' }

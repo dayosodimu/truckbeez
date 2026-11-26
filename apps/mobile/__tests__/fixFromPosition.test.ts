@@ -27,8 +27,15 @@ describe('NFR-10 speed from OS positions (security review of PR #35, H1/M1)', ()
     expect(distanceM(BASE, north(100))).toBeCloseTo(100, 0);
   });
 
-  it('a truly parked truck (GPS, speed 0, jitter inside the accuracy) parks after 5 s', () => {
-    const fixes = Array.from({ length: 7 }, (_, i) => pos(i * 1000, north(i % 2 ? 2 : 0), 0, 5));
+  it('a truly parked truck (GPS 5 m, speed 0, jitter inside the accuracy) parks once 8 km/h is ruled out plus the 5 s hold', () => {
+    // 5 m / 2.22 m/s: evidence starts at 3 s, so parked at 8 s, not before.
+    const fixes = (n: number) => Array.from({ length: n }, (_, i) => pos(i * 1000, north(i % 2 ? 2 : 0), 0, 5));
+    expect(run(fixes(8)).state).toBe('moving'); // 0..7 s
+    expect(run(fixes(9)).state).toBe('parked'); // 0..8 s
+  });
+
+  it('a parked truck with a 20 m fix still parks, within 15 s', () => {
+    const fixes = Array.from({ length: 15 }, (_, i) => pos(i * 1000, north(i % 2 ? 6 : 0), 0, 20));
     expect(run(fixes).state).toBe('parked');
   });
 
@@ -48,6 +55,23 @@ describe('NFR-10 speed from OS positions (security review of PR #35, H1/M1)', ()
     expect(run(fixes).state).toBe('moving');
   });
 
+  it.each([
+    [50, 15],
+    [50, 20],
+    [30, 20],
+    [10, 20],
+  ])('@driver-safety H1-R: a truck at %i km/h reporting speed 0 with %i m fixes never reads as parked (20 s)', (speedKmh, accuracy) => {
+    const step = speedKmh / 3.6; // metres per 1 s fix, less than the accuracy
+    let prev: PrevFix | undefined;
+    let model = INITIAL_MOTION;
+    for (let i = 0; i <= 20; i++) {
+      const r = fixFromPosition(pos(i * 1000, north(i * step), 0, accuracy), prev);
+      prev = r.prev;
+      model = onFix(model, r.fix);
+      expect(model.state).toBe('moving');
+    }
+  });
+
   it('@driver-safety a lone reported 0 with nothing to check it against is not evidence of parking', () => {
     expect(fixFromPosition(pos(0, BASE, 0, 5), undefined).fix.speedMps).toBeNull();
   });
@@ -55,7 +79,7 @@ describe('NFR-10 speed from OS positions (security review of PR #35, H1/M1)', ()
   it('uses the higher of reported and derived speed', () => {
     const prev = { ...BASE, at: 0 };
     expect(fixFromPosition(pos(1000, north(20), 2, 5), prev).fix.speedMps).toBeCloseTo(20, 0); // derived wins
-    expect(fixFromPosition(pos(1000, BASE, 15, 5), prev).fix.speedMps).toBe(15); // reported wins
+    expect(fixFromPosition(pos(5000, BASE, 15, 5), prev).fix.speedMps).toBe(15); // reported wins
   });
 
   it('negative or missing reported speed falls back to the derived speed', () => {
